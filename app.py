@@ -3,6 +3,11 @@ from flask import Flask, flash, request, Response, jsonify
 
 from werkzeug.utils import secure_filename
 
+import json
+import xmltodict
+
+from pprint import pprint
+
 # -----------------------------------------------------------------------------
 
 UPLOAD_FOLDER = '/tmp/'
@@ -33,10 +38,17 @@ def upload():
     filepath = path.join(UPLOAD_FOLDER, filename)
     file.save(filepath)
 
-    with open(filepath, "r") as file:
-        print(file.read())
-
     # TODO: XML -> JSON
+    with open(filepath, "r") as file:
+        raw = file.read()
+
+    xml_data = xmltodict.parse(raw, process_namespaces = True)
+
+    struct = xml_data["featureModel"]["struct"]
+    json_data = json.dumps(struct, indent = 4)
+
+    pprint(json_data)
+
     # TODO: JSON + D3 (Jinja2)
     # TODO: Call Selenium to render to SVG
 
