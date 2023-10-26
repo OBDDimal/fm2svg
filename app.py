@@ -1,6 +1,6 @@
 import os
 from os import path, urandom
-from flask import Flask, flash, request, Response, jsonify
+from flask import Flask, flash, request, Response, jsonify, render_template
 from selenium.webdriver.common.by import By
 
 from werkzeug.utils import secure_filename
@@ -28,11 +28,12 @@ def index():
     return Response("Running...", status=200)
 
 
-@app.route('/downloadTest', methods=["GET"])
-def download():
-    sourcefile = "file://" + os.getcwd() + "/index.html"
-    svg = downloadSVG(sourcefile, "")
-    return Response(svg, status=200)
+@app.route('/render', methods=["GET"])
+def render():
+    # TODO: Read JSON from payload
+    # TODO: JSON + D3 (Jinja2)
+    return render_template("index.html", title="test")
+
 
 @app.route('/', methods=["POST"])
 def upload():
@@ -60,18 +61,15 @@ def upload():
 
     pprint(json_data)
 
-    # TODO: JSON + D3 (Jinja2)
-    # TODO: Call Selenium to render to SVG
-    sourcefile = "file://" + os.getcwd() + "/index.html"
-    downloadSVG(sourcefile, "")
+    # TODO: JSON as payload
+    svg = downloadSVG("localhost:5000/render")
 
-    return Response("Done", status=200)
+    return Response(svg, status=200)
 
 
 # TODO: on get request -> Upload button
 
-# TODO: Call Selenium to render to SVG
-def downloadSVG(sourceFile, targetFile):
+def downloadSVG(sourceFile):
     options = webdriver.ChromeOptions()
     options.headless = True
     driver = webdriver.Chrome(options=options)
@@ -83,6 +81,6 @@ def downloadSVG(sourceFile, targetFile):
 
     driver.quit()
 
-    final_content = "<svg>" + style + svg + "</svg>"
+    final_content = "<svg preserveaspectratio=\"xMidYMid meet\" viewbox=\"0 0 1850 496\">" + style + svg + "</svg>"
 
     return final_content

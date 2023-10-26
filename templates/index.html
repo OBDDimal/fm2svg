@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+</head>
+<body>
+<div id="svg-container"></div>
+
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-flextree@2.0.0/build/d3-flextree.min.js"></script>
+<script type="module">
+    import * as init from "/services/init.service.js"
+
+    function getData() {
+        return {
+            root: undefined,
+            flexLayout: undefined,
+            zoom: undefined,
+            nodeIdCounter: 0,
+            isShortenedName: false,
+            spaceBetweenParentChild: 75,
+            spaceBetweenSiblings: 20,
+            d3ParentOfAddNode: undefined,
+            d3AddNodeIndex: 0,
+            coloringIndex: -1,
+            semanticEditing: false,
+            quickEdit: false,
+            direction: 'v', // h = horizontally, v = vertically
+            maxHorizontallyLevelWidth: [],
+            featureModelTree: undefined,
+        }
+    }
+
+    let d3Data = getData()
+    const rootNode = null;
+    init.initialize(d3Data, rootNode);
+
+
+
+</script>
+<style>
+    .ghost-circle {
+        fill: red;
+        fill-opacity: 0.2;
+    }
+
+    .ghost-circle-highlighted {
+        fill-opacity: 0.8;
+    }
+
+    #svg-container {
+        width: 100%;
+        height: calc(100vh - 64px);
+    }
+
+    .node {
+        cursor: pointer;
+        vertical-align: middle;
+    }
+
+    .is-searched-feature {
+        fill: lightcoral;
+    }
+
+    .node rect {
+        transition: all 0.75s;
+        stroke: #888;
+        stroke-width: 1px;
+    }
+
+    .node text {
+        /* fill: black; */
+        font-family: monospace;
+        text-anchor: middle;
+        user-select: none;
+    }
+
+    .and-group-circle {
+        stroke: #888;
+        stroke-width: 1.5px;
+        opacity: 0;
+    }
+
+    .optional-and-group-circle {
+        fill: white;
+        opacity: 1;
+    }
+
+    .mandatory-and-group-circle {
+        fill: rgb(136, 136, 136);
+        opacity: 1;
+    }
+
+    .alt-group {
+        fill: white;
+        stroke: #888;
+        stroke-width: 1.5px;
+    }
+
+    .or-group {
+        fill: #888;
+        stroke: #888;
+        stroke-width: 1.5px;
+    }
+
+    .link {
+        fill: none;
+        stroke: #888;
+        stroke-width: 1.5px;
+    }
+
+    .is-searched-link {
+        fill: none;
+        stroke: lightcoral;
+        stroke-width: 1.5px;
+    }
+
+    .children-count > circle {
+        fill: white;
+        stroke: #888;
+        stroke-width: 1.5px;
+    }
+
+    .pseudo-node {
+        cursor: pointer;
+        vertical-align: middle;
+    }
+
+    .pseudo-node circle {
+        fill: white;
+        stroke: #888;
+        stroke-width: 1.5px;
+    }
+
+    .feature-model-constraints {
+        position: absolute;
+        background-color: white;
+        bottom: 0;
+        width: 100%;
+        box-shadow: 0 10px 10px #888, 0px -10px 10px #888;
+        padding: 2rem;
+        min-height: 10%;
+        max-height: 20%;
+        overflow: scroll;
+    }
+
+    polygon {
+        stroke: #888;
+    }
+
+    .children-count-text {
+        fill: black !important;
+    }
+
+    .blackText {
+        fill: black !important;
+    }
+
+    .whiteText {
+        fill: white !important;
+    }
+</style>
+{% block content %}
+{% endblock %}
+</body>
+</html>
