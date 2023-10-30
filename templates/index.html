@@ -2,17 +2,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>{{ title }}</title>
+    <title>FM2SVG</title>
 </head>
 <script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3-flextree@2.0.0/build/d3-flextree.js"></script>
-<script type="text/javascript">
-</script>
 <body>
 <div id="svg-container"></div>
 <base href=".">
 
 <script type="module">
+    const xml = `{{ xml|safe }}`;
 
     // ---------------------------------------------Init-Script---------------------------------------------------------
     function init_initData(d3Data, data) {
@@ -29,18 +28,18 @@
 
         init_initData(d3Data, data);
 
-        // d3Data.zoom = d3
-        //     .zoom()
-        //     //.scaleExtent([0.1, 8])
-        //     .on('zoom', (event) => svgContent.attr('transform', event.transform));
+        d3Data.zoom = d3
+            .zoom()
+            //.scaleExtent([0.1, 8])
+            .on('zoom', (event) => svgContent.attr('transform', event.transform));
 
         // Create svg-container.
         const svg = d3
             .select('#svg-container')
             .append('svg')
             .attr('preserveAspectRatio', 'xMidYMid meet')
-        // .call(d3Data.zoom) // Zooming and penning.
-        // .on('dblclick.zoom', null);
+            .call(d3Data.zoom) // Zooming and penning.
+            .on('dblclick.zoom', null);
 
         const svgContent = svg.append('g');
 
@@ -65,8 +64,8 @@
         {#    .classed('drag-container', true);#}
 
         // // Listen to window resize.
-        // window.onresize = () => windowResize.update(d3Data);
-        // windowResize.update(d3Data);
+        window.onresize = () => window_resize_update(d3Data);
+        window_resize_update(d3Data);
     }
 
     function init_calcNodeSize(d3Data, d3Node) {
@@ -89,7 +88,7 @@
 
     function reset(d3Data, uncollapsedLevels = 4, maxChildrenCount = 3) {
         // Collapses all nodes after depth 1.
-        d3Data.root.data.each(node => node.collapse());
+        {#d3Data.root.data.each(node => node.collapse());#}
 
         let currentChildren = [d3Data.root.data];
         for (let i = 1; i <= uncollapsedLevels; i++) {
@@ -108,11 +107,45 @@
         }
 
         updateSvg(d3Data);
-        {#zoomFit(d3Data);#}
+        zoomFit(d3Data);
     }
 
+    function zoomFit(d3Data, padding = 0.75) {
+        let bounds = document.querySelector('svg > g').getBBox();
+        let fullWidth = document.querySelector('svg').getBoundingClientRect().width,
+            fullHeight = document.querySelector('svg').getBoundingClientRect().height;
+        let width = bounds.width,
+            height = bounds.height;
+        let midX = bounds.x + width / 2,
+            midY = bounds.y + height / 2;
+
+        // nothing to fit
+        if (width === 0 || height === 0) {
+            return;
+        }
+
+        let scale = padding / Math.max(width / fullWidth, height / fullHeight);
+
+        d3.select('svg').call(d3Data.zoom.translateTo, midX, midY).call(d3Data.zoom.scaleTo, scale);
+    }
 
     // -----------------------------------------------------------------------------------------------------------------
+
+    // -- windowResize
+    function window_resize_update(d3Data) {
+        d3.select('#svg-container')
+            .style('height', window.innerHeight - 100);
+
+        d3.select('#svg-container > svg')
+            .attr(
+                'viewBox',
+                `0 0 ${window.innerWidth} ${window.innerHeight - 64}`,
+            );
+
+        zoomFit(d3Data);
+    }
+
+    // --
 
     // -- update-Script --
     function updateFeatureNodes(d3Data, visibleD3Nodes) {
@@ -129,21 +162,21 @@
         const featureNodeEnter = featureNode
             .enter()
             .append('g')
-            .classed('node', true)
-            .call(d3Data.drag.listener)
-            // Highlight and reset highlighting of ghost-nodes during drag and drop of feature-nodes.
-            .on('touchmove', (event) => ghostNodeTouchMove(event, d3Data), true)
-            // Open contextmenu with right-click on d3Node.
-            .on('contextmenu', (event, d3Node) => {
-                // only use contextmenu on non-mobile devices
-                if (!('ontouchstart' in window)) {
-                    event.preventDefault();
-                    d3Data.contextMenu.selectedD3Node = d3Node;
-                    d3Data.contextMenu.event = event;
-                } else {
-                    event.preventDefault();
-                }
-            });
+            .classed('node', true);
+        {#.call(d3Data.drag.listener)#}
+        {#// Highlight and reset highlighting of ghost-nodes during drag and drop of feature-nodes.#}
+        {#.on('touchmove', (event) => ghostNodeTouchMove(event, d3Data), true)#}
+        {#// Open contextmenu with right-click on d3Node.#}
+        {#.on('contextmenu', (event, d3Node) => {#}
+        {#    // only use contextmenu on non-mobile devices#}
+        {#    if (!('ontouchstart' in window)) {#}
+        {#        event.preventDefault();#}
+        {#        d3Data.contextMenu.selectedD3Node = d3Node;#}
+        {#        d3Data.contextMenu.event = event;#}
+        {#    } else {#}
+        {#        event.preventDefault();#}
+        {#    }#}
+        {# }); #}
 
         const rectAndTextEnter = featureNodeEnter
             .append('g')
@@ -213,8 +246,8 @@
         // Remove old/invisible nodes.
         featureNode.exit().remove();
 
-        {#featureNodeEnter.append('g').classed('children-count-container', true);#}
-        {#featureNodeEnter.append('g').classed('quick-edit-actions-container', true);#}
+        featureNodeEnter.append('g').classed('children-count-container', true);
+        featureNodeEnter.append('g').classed('quick-edit-actions-container', true);
 
         updateChildrenCount(d3Data, featureNodeUpdate);
         {#updateQuickEditActions(d3Data, featureNodeUpdate);#}
@@ -617,8 +650,6 @@
         updateFeatureNodes(d3Data, visibleD3Nodes);
         updatePseudoNodes(d3Data, visibleD3Nodes);
         updateLinks(d3Data, visibleD3Nodes);
-
-        /*console.log('Rendertime', performance.now() - start);*/
     }
 
     // Calculates rect-width dependent on font-size dynamically.
@@ -635,27 +666,6 @@
             );
         } else {
             return PSEUDO_NODE_SIZE * 2;
-        }
-    }
-
-    let touchtime = 0;
-
-    function dblClickEvent(event, d3Data, d3Node) {
-        if (touchtime === 0) {
-            // set first click
-            touchtime = new Date().getTime();
-        } else {
-            // compare first click to this click and see if they occurred within double click threshold
-            if (new Date().getTime() - touchtime < 300) {
-                // double click occurred
-                event.preventDefault();
-                d3Node.data.toggleCollapse();
-                updateSvg(d3Data);
-                touchtime = 0;
-            } else {
-                // not a double click so set as a new first click
-                touchtime = new Date().getTime();
-            }
         }
     }
 
@@ -761,8 +771,10 @@
     const GROUP_SEGMENT_RADIUS = 25;
     const CHILDREN_COUNT_FONT_SIZE = 7;
 
-    const TRIANGLE_HORIZONTAL_ROTATION=270;
-    const TRIANGLE_BORDER_OFFSET=11;
+    const TRIANGLE_HORIZONTAL_ROTATION = 270;
+    const TRIANGLE_BORDER_OFFSET = 11;
+
+    const MANDATORY_CIRCLE_RADIUS = 6;
 
     const DISPLAY_NAME_LENGTH = 8;
     const DISPLAY_NAME_RAW = 5;
@@ -1055,11 +1067,6 @@
             }
         }
 
-        hideAllOtherNodes() {
-            this.collapse();
-            this.getAllNodesToRoot().forEach(node => node.hideAllNodesOnThisLevel());
-        }
-
         unhideChildren() {
             if (this.isLeaf()) {
                 return;
@@ -1199,900 +1206,7 @@
 
     {# TODO: import JSON and get root node #}
 
-    function xmlToJson(_currentModel, data) {
-        const currentModel = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-	<featureModel>
-		<properties/>
-		<struct>
-			<alt abstract="true" mandatory="true" name="SPL">
-				<and abstract="true" name="generatedSPL">
-					<or abstract="true" name="DERIVATIVES">
-						<feature name="Derivative_LoggingEvictor_Statistics_Evictor_LoggingBase"/>
-						<feature name="Derivative_LoggingEvictor_Evictor_MemoryBudget_LoggingBase"/>
-						<feature name="Derivative_LoggingInfo_Statistics_Verifier"/>
-						<feature name="Derivative_Latches_Statistics_Verifier"/>
-						<feature name="Derivative_Latches_Verifier_INCompressor"/>
-						<feature name="Derivative_Statistics_Verifier_INCompressor"/>
-						<feature name="Derivative_Statistics_Verifier_DeleteOp"/>
-						<feature name="Derivative_LookAHEADCache_Evictor_CriticalEviction"/>
-						<feature name="Derivative_INCompressor_Evictor_CriticalEviction"/>
-						<feature name="Derivative_Evictor_MemoryBudget_CriticalEviction"/>
-						<feature name="Derivative_LoggingEvictor_Evictor_LoggingBase"/>
-						<feature name="Derivative_FSync_Latches"/>
-						<feature name="Derivative_NIO_ChunkedNIO"/>
-						<feature name="Derivative_IO_SynchronizedIO"/>
-						<feature name="Derivative_LoggingConfig_Statistics"/>
-						<feature name="Derivative_FSync_Statistics"/>
-						<feature name="Derivative_LookAHEADCache_Statistics"/>
-						<feature name="Derivative_Latches_Statistics"/>
-						<feature name="Derivative_Latches_CheckLeaks"/>
-						<feature name="Derivative_Statistics_CheckLeaks"/>
-						<feature name="Derivative_Statistics_Verifier"/>
-						<feature name="Derivative_LoggingFinest_CPBytes"/>
-						<feature name="Derivative_CheckpointerDaemon_CPBytes"/>
-						<feature name="Derivative_LoggingFinest_CPTime"/>
-						<feature name="Derivative_CPBytes_CPTime"/>
-						<feature name="Derivative_LoggingFine_INCompressor"/>
-						<feature name="Derivative_Latches_INCompressor"/>
-						<feature name="Derivative_Statistics_INCompressor"/>
-						<feature name="Derivative_Verifier_INCompressor"/>
-						<feature name="Derivative_LoggingCleaner_DeleteOp"/>
-						<feature name="Derivative_Latches_DeleteOp"/>
-						<feature name="Derivative_Statistics_DeleteOp"/>
-						<feature name="Derivative_INCompressor_DeleteOp"/>
-						<feature name="Derivative_LoggingFinest_TruncateOp"/>
-						<feature name="Derivative_Latches_TruncateOp"/>
-						<feature name="Derivative_DeleteOp_TruncateOp"/>
-						<feature name="Derivative_Latches_RenameOp"/>
-						<feature name="Derivative_LoggingEvictor_Evictor"/>
-						<feature name="Derivative_Latches_Evictor"/>
-						<feature name="Derivative_Statistics_Evictor"/>
-						<feature name="Derivative_INCompressor_Evictor"/>
-						<feature name="Derivative_DeleteOp_Evictor"/>
-						<feature name="Derivative_LoggingInfo_MemoryBudget"/>
-						<feature name="Derivative_LookAHEADCache_MemoryBudget"/>
-						<feature name="Derivative_Latches_MemoryBudget"/>
-						<feature name="Derivative_Statistics_MemoryBudget"/>
-						<feature name="Derivative_DeleteOp_MemoryBudget"/>
-						<feature name="Derivative_Evictor_MemoryBudget"/>
-						<feature name="Derivative_Evictor_CriticalEviction"/>
-						<feature name="Derivative_Evictor_EvictorDaemon"/>
-						<feature name="Derivative_Latches_FileHandleCache"/>
-						<feature name="Derivative_LoggingSevere_EnvironmentLocking"/>
-						<feature name="Derivative_LoggingFinest_LoggingBase"/>
-						<feature name="Derivative_LoggingFiner_LoggingBase"/>
-						<feature name="Derivative_LoggingFine_LoggingBase"/>
-						<feature name="Derivative_LoggingSevere_LoggingBase"/>
-						<feature name="Derivative_LoggingRecovery_LoggingBase"/>
-						<feature name="Derivative_LoggingCleaner_LoggingBase"/>
-						<feature name="Derivative_LoggingFileHandler_LoggingBase"/>
-						<feature name="Derivative_LoggingDbLogHandler_LoggingBase"/>
-						<feature name="Derivative_LoggingConsoleHandler_LoggingBase"/>
-					</or>
-					<and abstract="true" name="Logging">
-						<feature name="LoggingFiner"/>
-						<feature name="LoggingConfig"/>
-						<feature name="LoggingSevere"/>
-						<feature name="LoggingEvictor"/>
-						<feature name="LoggingCleaner"/>
-						<feature name="LoggingRecovery"/>
-						<feature name="LoggingDbLogHandler"/>
-						<feature name="LoggingConsoleHandler"/>
-						<feature name="LoggingInfo"/>
-						<feature mandatory="true" name="LoggingBase"/>
-						<feature name="LoggingFileHandler"/>
-						<feature name="LoggingFine"/>
-						<feature name="LoggingFinest"/>
-					</and>
-					<and abstract="true" mandatory="true" name="ConcurrTrans">
-						<feature name="Latches"/>
-						<feature abstract="true" name="Transactions"/>
-						<feature name="CheckLeaks"/>
-						<feature name="FSync"/>
-					</and>
-					<and abstract="true" mandatory="true" name="Persistance">
-						<feature name="Checksum"/>
-						<alt abstract="true" mandatory="true" name="IIO">
-							<and abstract="true" name="OldIO">
-								<feature abstract="true" name="SynchronizedIO"/>
-								<feature mandatory="true" name="IO"/>
-							</and>
-							<and abstract="true" name="NewIO">
-								<alt abstract="true" mandatory="true" name="NIOAccess">
-									<feature name="ChunkedNIO"/>
-									<feature name="NIO"/>
-								</alt>
-								<feature abstract="true" name="DirectNIO"/>
-							</and>
-						</alt>
-						<feature name="EnvironmentLocking"/>
-						<and abstract="true" mandatory="true" name="Checkpointer">
-							<feature name="CPBytes"/>
-							<feature name="CPTime"/>
-							<feature name="CheckpointerDaemon"/>
-						</and>
-						<feature name="DiskFullErro"/>
-						<feature name="FileHandleCache"/>
-						<and abstract="true" mandatory="true" name="IICleaner">
-							<feature name="CleanerDaemon"/>
-							<feature abstract="true" mandatory="true" name="Cleaner"/>
-							<feature name="LookAHEADCache"/>
-						</and>
-					</and>
-					<feature name="Statistics"/>
-					<and abstract="true" mandatory="true" name="BTree">
-						<feature name="INCompressor"/>
-						<and abstract="true" name="IEvictor">
-							<feature name="CriticalEviction"/>
-							<feature abstract="true" name="EvictorDaemon"/>
-							<feature mandatory="true" name="Evictor"/>
-						</and>
-						<feature name="Verifier"/>
-					</and>
-					<and abstract="true" mandatory="true" name="Ops">
-						<feature name="DeleteOp"/>
-						<feature name="RenameOp"/>
-						<feature name="TruncateOp"/>
-					</and>
-					<feature name="MemoryBudget"/>
-					<feature mandatory="true" name="base"/>
-				</and>
-			</alt>
-		</struct>
-		<constraints>
-			<rule>
-				<imp>
-					<disj>
-						<var>Evictor</var>
-						<disj>
-							<var>EvictorDaemon</var>
-							<var>LookAHEADCache</var>
-						</disj>
-					</disj>
-					<var>MemoryBudget</var>
-				</imp>
-			</rule>
-			<rule>
-				<imp>
-					<var>CriticalEviction</var>
-					<var>INCompressor</var>
-				</imp>
-			</rule>
-			<rule>
-				<imp>
-					<var>CPBytes</var>
-					<var>CPTime</var>
-				</imp>
-			</rule>
-			<rule>
-				<imp>
-					<var>DeleteOp</var>
-					<conj>
-						<var>Evictor</var>
-						<conj>
-							<var>INCompressor</var>
-							<var>MemoryBudget</var>
-						</conj>
-					</conj>
-				</imp>
-			</rule>
-			<rule>
-				<imp>
-					<var>MemoryBudget</var>
-					<conj>
-						<var>Evictor</var>
-						<var>Latches</var>
-					</conj>
-				</imp>
-			</rule>
-			<rule>
-				<imp>
-					<var>TruncateOp</var>
-					<var>DeleteOp</var>
-				</imp>
-			</rule>
-			<rule>
-				<imp>
-					<var>Verifier</var>
-					<var>INCompressor</var>
-				</imp>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LoggingEvictor_Statistics_Evictor_LoggingBase</var>
-					<conj>
-						<var>LoggingBase</var>
-						<conj>
-							<var>Evictor</var>
-							<conj>
-								<var>Statistics</var>
-								<var>LoggingEvictor</var>
-							</conj>
-						</conj>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LoggingEvictor_Evictor_MemoryBudget_LoggingBase</var>
-					<conj>
-						<var>LoggingBase</var>
-						<conj>
-							<var>Evictor</var>
-							<conj>
-								<var>LoggingEvictor</var>
-								<var>MemoryBudget</var>
-							</conj>
-						</conj>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LoggingInfo_Statistics_Verifier</var>
-					<conj>
-						<var>Verifier</var>
-						<conj>
-							<var>LoggingInfo</var>
-							<var>Statistics</var>
-						</conj>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Latches_Statistics_Verifier</var>
-					<conj>
-						<var>Latches</var>
-						<conj>
-							<var>Verifier</var>
-							<var>Statistics</var>
-						</conj>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Latches_Verifier_INCompressor</var>
-					<conj>
-						<var>Latches</var>
-						<conj>
-							<var>INCompressor</var>
-							<var>Verifier</var>
-						</conj>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Statistics_Verifier_INCompressor</var>
-					<conj>
-						<var>INCompressor</var>
-						<conj>
-							<var>Verifier</var>
-							<var>Statistics</var>
-						</conj>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Statistics_Verifier_DeleteOp</var>
-					<conj>
-						<var>Verifier</var>
-						<conj>
-							<var>Statistics</var>
-							<var>DeleteOp</var>
-						</conj>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LookAHEADCache_Evictor_CriticalEviction</var>
-					<conj>
-						<var>Evictor</var>
-						<conj>
-							<var>LookAHEADCache</var>
-							<var>CriticalEviction</var>
-						</conj>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_INCompressor_Evictor_CriticalEviction</var>
-					<conj>
-						<var>INCompressor</var>
-						<conj>
-							<var>Evictor</var>
-							<var>CriticalEviction</var>
-						</conj>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Evictor_MemoryBudget_CriticalEviction</var>
-					<conj>
-						<var>Evictor</var>
-						<conj>
-							<var>CriticalEviction</var>
-							<var>MemoryBudget</var>
-						</conj>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LoggingEvictor_Evictor_LoggingBase</var>
-					<conj>
-						<var>LoggingBase</var>
-						<conj>
-							<var>Evictor</var>
-							<var>LoggingEvictor</var>
-						</conj>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_FSync_Latches</var>
-					<conj>
-						<var>Latches</var>
-						<var>FSync</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_NIO_ChunkedNIO</var>
-					<conj>
-						<var>ChunkedNIO</var>
-						<var>NIO</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_IO_SynchronizedIO</var>
-					<conj>
-						<var>IO</var>
-						<var>SynchronizedIO</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LoggingConfig_Statistics</var>
-					<conj>
-						<var>LoggingConfig</var>
-						<var>Statistics</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_FSync_Statistics</var>
-					<conj>
-						<var>FSync</var>
-						<var>Statistics</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LookAHEADCache_Statistics</var>
-					<conj>
-						<var>LookAHEADCache</var>
-						<var>Statistics</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Latches_Statistics</var>
-					<conj>
-						<var>Latches</var>
-						<var>Statistics</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Latches_CheckLeaks</var>
-					<conj>
-						<var>Latches</var>
-						<var>CheckLeaks</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Statistics_CheckLeaks</var>
-					<conj>
-						<var>CheckLeaks</var>
-						<var>Statistics</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Statistics_Verifier</var>
-					<conj>
-						<var>Verifier</var>
-						<var>Statistics</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LoggingFinest_CPBytes</var>
-					<conj>
-						<var>CPBytes</var>
-						<var>LoggingFinest</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_CheckpointerDaemon_CPBytes</var>
-					<conj>
-						<var>CPBytes</var>
-						<var>CheckpointerDaemon</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LoggingFinest_CPTime</var>
-					<conj>
-						<var>LoggingFinest</var>
-						<var>CPTime</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_CPBytes_CPTime</var>
-					<conj>
-						<var>CPBytes</var>
-						<var>CPTime</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LoggingFine_INCompressor</var>
-					<conj>
-						<var>INCompressor</var>
-						<var>LoggingFine</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Latches_INCompressor</var>
-					<conj>
-						<var>Latches</var>
-						<var>INCompressor</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Statistics_INCompressor</var>
-					<conj>
-						<var>INCompressor</var>
-						<var>Statistics</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Verifier_INCompressor</var>
-					<conj>
-						<var>INCompressor</var>
-						<var>Verifier</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LoggingCleaner_DeleteOp</var>
-					<conj>
-						<var>LoggingCleaner</var>
-						<var>DeleteOp</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Latches_DeleteOp</var>
-					<conj>
-						<var>Latches</var>
-						<var>DeleteOp</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Statistics_DeleteOp</var>
-					<conj>
-						<var>Statistics</var>
-						<var>DeleteOp</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_INCompressor_DeleteOp</var>
-					<conj>
-						<var>INCompressor</var>
-						<var>DeleteOp</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LoggingFinest_TruncateOp</var>
-					<conj>
-						<var>LoggingFinest</var>
-						<var>TruncateOp</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Latches_TruncateOp</var>
-					<conj>
-						<var>Latches</var>
-						<var>TruncateOp</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_DeleteOp_TruncateOp</var>
-					<conj>
-						<var>TruncateOp</var>
-						<var>DeleteOp</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Latches_RenameOp</var>
-					<conj>
-						<var>Latches</var>
-						<var>RenameOp</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LoggingEvictor_Evictor</var>
-					<conj>
-						<var>Evictor</var>
-						<var>LoggingEvictor</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Latches_Evictor</var>
-					<conj>
-						<var>Latches</var>
-						<var>Evictor</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Statistics_Evictor</var>
-					<conj>
-						<var>Evictor</var>
-						<var>Statistics</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_INCompressor_Evictor</var>
-					<conj>
-						<var>INCompressor</var>
-						<var>Evictor</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_DeleteOp_Evictor</var>
-					<conj>
-						<var>Evictor</var>
-						<var>DeleteOp</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LoggingInfo_MemoryBudget</var>
-					<conj>
-						<var>LoggingInfo</var>
-						<var>MemoryBudget</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LookAHEADCache_MemoryBudget</var>
-					<conj>
-						<var>LookAHEADCache</var>
-						<var>MemoryBudget</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Latches_MemoryBudget</var>
-					<conj>
-						<var>Latches</var>
-						<var>MemoryBudget</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Statistics_MemoryBudget</var>
-					<conj>
-						<var>Statistics</var>
-						<var>MemoryBudget</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_DeleteOp_MemoryBudget</var>
-					<conj>
-						<var>DeleteOp</var>
-						<var>MemoryBudget</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Evictor_MemoryBudget</var>
-					<conj>
-						<var>Evictor</var>
-						<var>MemoryBudget</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Evictor_CriticalEviction</var>
-					<conj>
-						<var>Evictor</var>
-						<var>CriticalEviction</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Evictor_EvictorDaemon</var>
-					<conj>
-						<var>Evictor</var>
-						<var>EvictorDaemon</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_Latches_FileHandleCache</var>
-					<conj>
-						<var>Latches</var>
-						<var>FileHandleCache</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LoggingSevere_EnvironmentLocking</var>
-					<conj>
-						<var>LoggingSevere</var>
-						<var>EnvironmentLocking</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LoggingFinest_LoggingBase</var>
-					<conj>
-						<var>LoggingBase</var>
-						<var>LoggingFinest</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LoggingFiner_LoggingBase</var>
-					<conj>
-						<var>LoggingBase</var>
-						<var>LoggingFiner</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LoggingFine_LoggingBase</var>
-					<conj>
-						<var>LoggingBase</var>
-						<var>LoggingFine</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LoggingSevere_LoggingBase</var>
-					<conj>
-						<var>LoggingBase</var>
-						<var>LoggingSevere</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LoggingRecovery_LoggingBase</var>
-					<conj>
-						<var>LoggingBase</var>
-						<var>LoggingRecovery</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LoggingCleaner_LoggingBase</var>
-					<conj>
-						<var>LoggingCleaner</var>
-						<var>LoggingBase</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LoggingFileHandler_LoggingBase</var>
-					<conj>
-						<var>LoggingBase</var>
-						<var>LoggingFileHandler</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LoggingDbLogHandler_LoggingBase</var>
-					<conj>
-						<var>LoggingBase</var>
-						<var>LoggingDbLogHandler</var>
-					</conj>
-				</eq>
-			</rule>
-			<rule>
-				<eq>
-					<var>Derivative_LoggingConsoleHandler_LoggingBase</var>
-					<conj>
-						<var>LoggingBase</var>
-						<var>LoggingConsoleHandler</var>
-					</conj>
-				</eq>
-			</rule>
-		</constraints>
-		<calculations Auto="true" Constraints="true" Features="true" Redundant="true" Tautology="true"/>
-		<comments>
-			<c>Semantic Dependencies</c>
-		</comments>
-		<featureOrder userDefined="true">
-			<feature name="base"/>
-			<feature name="LoggingBase"/>
-			<feature name="LoggingConsoleHandler"/>
-			<feature name="LoggingDbLogHandler"/>
-			<feature name="LoggingFileHandler"/>
-			<feature name="EnvironmentLocking"/>
-			<feature name="DiskFullErro"/>
-			<feature name="FileHandleCache"/>
-			<feature name="CriticalEviction"/>
-			<feature name="MemoryBudget"/>
-			<feature name="Evictor"/>
-			<feature name="RenameOp"/>
-			<feature name="TruncateOp"/>
-			<feature name="DeleteOp"/>
-			<feature name="CleanerDaemon"/>
-			<feature name="INCompressor"/>
-			<feature name="CPTime"/>
-			<feature name="CPBytes"/>
-			<feature name="CheckpointerDaemon"/>
-			<feature name="Verifier"/>
-			<feature name="CheckLeaks"/>
-			<feature name="Statistics"/>
-			<feature name="IO"/>
-			<feature name="ChunkedNIO"/>
-			<feature name="NIO"/>
-			<feature name="Checksum"/>
-			<feature name="Latches"/>
-			<feature name="LookAHEADCache"/>
-			<feature name="FSync"/>
-			<feature name="LoggingCleaner"/>
-			<feature name="LoggingEvictor"/>
-			<feature name="LoggingRecovery"/>
-			<feature name="LoggingSevere"/>
-			<feature name="LoggingInfo"/>
-			<feature name="LoggingConfig"/>
-			<feature name="LoggingFine"/>
-			<feature name="LoggingFiner"/>
-			<feature name="LoggingFinest"/>
-			<feature name="Derivative_LoggingConsoleHandler_LoggingBase"/>
-			<feature name="Derivative_LoggingDbLogHandler_LoggingBase"/>
-			<feature name="Derivative_LoggingFileHandler_LoggingBase"/>
-			<feature name="Derivative_LoggingCleaner_LoggingBase"/>
-			<feature name="Derivative_LoggingRecovery_LoggingBase"/>
-			<feature name="Derivative_LoggingSevere_LoggingBase"/>
-			<feature name="Derivative_LoggingFine_LoggingBase"/>
-			<feature name="Derivative_LoggingFiner_LoggingBase"/>
-			<feature name="Derivative_LoggingFinest_LoggingBase"/>
-			<feature name="Derivative_LoggingSevere_EnvironmentLocking"/>
-			<feature name="Derivative_Latches_FileHandleCache"/>
-			<feature name="Derivative_Evictor_EvictorDaemon"/>
-			<feature name="Derivative_Evictor_CriticalEviction"/>
-			<feature name="Derivative_Evictor_MemoryBudget"/>
-			<feature name="Derivative_DeleteOp_MemoryBudget"/>
-			<feature name="Derivative_Statistics_MemoryBudget"/>
-			<feature name="Derivative_Latches_MemoryBudget"/>
-			<feature name="Derivative_LookAHEADCache_MemoryBudget"/>
-			<feature name="Derivative_LoggingInfo_MemoryBudget"/>
-			<feature name="Derivative_DeleteOp_Evictor"/>
-			<feature name="Derivative_INCompressor_Evictor"/>
-			<feature name="Derivative_Statistics_Evictor"/>
-			<feature name="Derivative_Latches_Evictor"/>
-			<feature name="Derivative_LoggingEvictor_Evictor"/>
-			<feature name="Derivative_Latches_RenameOp"/>
-			<feature name="Derivative_DeleteOp_TruncateOp"/>
-			<feature name="Derivative_Latches_TruncateOp"/>
-			<feature name="Derivative_LoggingFinest_TruncateOp"/>
-			<feature name="Derivative_INCompressor_DeleteOp"/>
-			<feature name="Derivative_Statistics_DeleteOp"/>
-			<feature name="Derivative_Latches_DeleteOp"/>
-			<feature name="Derivative_LoggingCleaner_DeleteOp"/>
-			<feature name="Derivative_Verifier_INCompressor"/>
-			<feature name="Derivative_Statistics_INCompressor"/>
-			<feature name="Derivative_Latches_INCompressor"/>
-			<feature name="Derivative_LoggingFine_INCompressor"/>
-			<feature name="Derivative_CPBytes_CPTime"/>
-			<feature name="Derivative_LoggingFinest_CPTime"/>
-			<feature name="Derivative_CheckpointerDaemon_CPBytes"/>
-			<feature name="Derivative_LoggingFinest_CPBytes"/>
-			<feature name="Derivative_Statistics_Verifier"/>
-			<feature name="Derivative_Statistics_CheckLeaks"/>
-			<feature name="Derivative_Latches_CheckLeaks"/>
-			<feature name="Derivative_Latches_Statistics"/>
-			<feature name="Derivative_LookAHEADCache_Statistics"/>
-			<feature name="Derivative_FSync_Statistics"/>
-			<feature name="Derivative_LoggingConfig_Statistics"/>
-			<feature name="Derivative_IO_SynchronizedIO"/>
-			<feature name="Derivative_NIO_ChunkedNIO"/>
-			<feature name="Derivative_FSync_Latches"/>
-			<feature name="Derivative_LoggingEvictor_Evictor_LoggingBase"/>
-			<feature name="Derivative_Evictor_MemoryBudget_CriticalEviction"/>
-			<feature name="Derivative_INCompressor_Evictor_CriticalEviction"/>
-			<feature name="Derivative_LookAHEADCache_Evictor_CriticalEviction"/>
-			<feature name="Derivative_Statistics_Verifier_DeleteOp"/>
-			<feature name="Derivative_Statistics_Verifier_INCompressor"/>
-			<feature name="Derivative_Latches_Verifier_INCompressor"/>
-			<feature name="Derivative_Latches_Statistics_Verifier"/>
-			<feature name="Derivative_LoggingInfo_Statistics_Verifier"/>
-			<feature name="Derivative_LoggingEvictor_Evictor_MemoryBudget_LoggingBase"/>
-			<feature name="Derivative_LoggingEvictor_Statistics_Evictor_LoggingBase"/>
-		</featureOrder>
-	</featureModel>`
-
+    function xmlToJson(currentModel, data) {
         let m = currentModel.split('\n').splice(1).join('\n');
 
         const parser = new DOMParser();
@@ -2205,16 +1319,10 @@
         };
     }
 
-    console.log("Initializing Data...")
     let d3Data = initD3Data();
     let data = initData();
-    console.log(data)
-    const jsonData = null;
-    console.log("xmlToJSON")
-    xmlToJson(jsonData, data);
-    console.log("Done...")
+    xmlToJson(xml, data);
     const rootNode = data.rootNode;
-    console.log("Initializing...")
     init_initialize(d3Data, rootNode);
     reset(d3Data);
 
