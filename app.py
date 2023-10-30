@@ -1,4 +1,4 @@
-import os
+import tempfile
 from os import path, urandom
 from flask import Flask, flash, request, Response, jsonify, render_template
 from selenium.webdriver.common.by import By
@@ -11,8 +11,6 @@ import json
 import xmltodict
 
 from pprint import pprint
-
-from tempfile import NamedTemporaryFile
 
 # -----------------------------------------------------------------------------
 
@@ -34,16 +32,16 @@ def index():
 def render():
     # TODO: Read JSON from payload
     # TODO: JSON + D3 (Jinja2)
-    render_template("index.html", title="test")
 
-    with tempfile.NamedTemporaryFile() as ntf:
-        with open(filename, "w+") as file:
-            file.write(render_template("index.html", title="test"))
-        
-        content = downloadSVG(ntf)
+    # with tempfile.NamedTemporaryFile() as ntf:
+    #     with open(ntf, "w+") as file:
+    #         file.write(render_template("index.html", title="test"))
+    #
+    #     content = downloadSVG(ntf)
+    #
+    # return Response(content, status=200)
 
-
-    return Response("")
+    return render_template("index.html", title="test")
 
 
 @app.route('/', methods=["POST"])

@@ -44,9 +44,9 @@
 
         const svgContent = svg.append('g');
 
-        d3Data.container.highlightedConstraintsContainer = svgContent
-            .append('g')
-            .classed('highlighted-constraints-container', true);
+        {#d3Data.container.highlightedConstraintsContainer = svgContent#}
+        {#    .append('g')#}
+        {#    .classed('highlighted-constraints-container', true);#}
 
         d3Data.container.linksContainer = svgContent
             .append('g')
@@ -60,9 +60,9 @@
             .append('g')
             .classed('feature-node-container', true);
 
-        d3Data.container.dragContainer = svgContent
-            .append('g')
-            .classed('drag-container', true);
+        {#d3Data.container.dragContainer = svgContent#}
+        {#    .append('g')#}
+        {#    .classed('drag-container', true);#}
 
         // // Listen to window resize.
         // window.onresize = () => windowResize.update(d3Data);
@@ -87,13 +87,682 @@
         return [width, height];
     }
 
+    function reset(d3Data, uncollapsedLevels = 4, maxChildrenCount = 3) {
+        // Collapses all nodes after depth 1.
+        d3Data.root.data.each(node => node.collapse());
+
+        let currentChildren = [d3Data.root.data];
+        for (let i = 1; i <= uncollapsedLevels; i++) {
+            currentChildren.forEach(child => {
+                if (child.children.length <= maxChildrenCount) {
+                    child.uncollapse(false);
+                }
+            });
+            currentChildren = currentChildren
+                .map(parent => parent.children.length <= maxChildrenCount ? parent.children : [])
+                .flat();
+
+            if (currentChildren.length === 0) {
+                break;
+            }
+        }
+
+        updateSvg(d3Data);
+        {#zoomFit(d3Data);#}
+    }
+
+
     // -----------------------------------------------------------------------------------------------------------------
+
+    // -- update-Script --
+    function updateFeatureNodes(d3Data, visibleD3Nodes) {
+        const featureNode = d3Data.container.featureNodesContainer
+            .selectAll('g.node')
+            .data(
+                visibleD3Nodes.filter(
+                    (d3Node) => d3Node.data instanceof FeatureNode
+                ),
+                (d3Node) => d3Node.id || (d3Node.id = ++d3Data.nodeIdCounter)
+            );
+
+        // Enter new nodes
+        const featureNodeEnter = featureNode
+            .enter()
+            .append('g')
+            .classed('node', true)
+            .call(d3Data.drag.listener)
+            // Highlight and reset highlighting of ghost-nodes during drag and drop of feature-nodes.
+            .on('touchmove', (event) => ghostNodeTouchMove(event, d3Data), true)
+            // Open contextmenu with right-click on d3Node.
+            .on('contextmenu', (event, d3Node) => {
+                // only use contextmenu on non-mobile devices
+                if (!('ontouchstart' in window)) {
+                    event.preventDefault();
+                    d3Data.contextMenu.selectedD3Node = d3Node;
+                    d3Data.contextMenu.event = event;
+                } else {
+                    event.preventDefault();
+                }
+            });
+
+        const rectAndTextEnter = featureNodeEnter
+            .append('g')
+            .classed('rect-and-text', true);
+        rectAndTextEnter.append('rect').attr('height', RECT_HEIGHT);
+        rectAndTextEnter
+            .append('text')
+            .attr('font-size', FEATURE_FONT_SIZE);
+
+        featureNodeEnter
+            .append('circle')
+            .classed('and-group-circle', true)
+            .attr('r', MANDATORY_CIRCLE_RADIUS);
+
+        // Update nodes
+        const featureNodeUpdate = featureNodeEnter.merge(featureNode);
+        featureNodeUpdate.attr(
+            'transform',
+            (d3Node) => `translate(${d3Node.x}, ${d3Node.y})`
+        );
+        featureNodeUpdate
+            .select('.and-group-circle')
+            .classed(
+                'mandatory-and-group-circle',
+                (d3Node) =>
+                    d3Node.parent &&
+                    d3Node.parent.data.isAnd() &&
+                    d3Node.data.isMandatory
+            )
+            .classed(
+                'optional-and-group-circle',
+                (d3Node) =>
+                    d3Node.parent &&
+                    d3Node.parent.data.isAnd() &&
+                    !d3Node.data.isMandatory
+            );
+
+        const rectAndTextUpdate = featureNodeUpdate.select('.rect-and-text');
+        rectAndTextUpdate
+            .select('rect')
+            .classed('is-searched-feature', (d3Node) => d3Node.data.isSearched)
+            .attr('fill', (d3Node) => d3Node.data.color())
+            .attr('x', (d3Node) =>
+                d3Data.direction === 'v' ? -d3Node.width / 2 : 0
+            )
+            .attr('y', d3Data.direction === 'v' ? 0 : -RECT_HEIGHT / 2)
+            .attr('width', (d3Node) => d3Node.width);
+        rectAndTextUpdate
+            .select('text')
+            .attr('font-style', (d3Node) =>
+                d3Node.data.isAbstract ? 'italic' : 'normal'
+            )
+            .attr(
+                'dy',
+                d3Data.direction === 'v' ? RECT_HEIGHT / 2 + 5.5 : 5.5
+            )
+            .attr('x', d3Data.direction === 'v' ? 0 : (d3Node) => d3Node.width / 2)
+            .classed('whiteText', (d3Node) => {
+                let color = d3Node.data.color();
+                const rgb = color.replace(/[^\d,]/g, '').split(',');
+                return rgb[0] * 0.299 + rgb[1] * 0.587 + rgb[2] * 0.114 <= 186;
+            })
+            .text((d3Node) =>
+                d3Data.isShortenedName ? d3Node.data.displayName : d3Node.data.name
+            );
+
+        // Remove old/invisible nodes.
+        featureNode.exit().remove();
+
+        {#featureNodeEnter.append('g').classed('children-count-container', true);#}
+        {#featureNodeEnter.append('g').classed('quick-edit-actions-container', true);#}
+
+        updateChildrenCount(d3Data, featureNodeUpdate);
+        {#updateQuickEditActions(d3Data, featureNodeUpdate);#}
+    }
+
+    function updateQuickEditActions(d3Data, featureNodeUpdate) {
+        const quickEditActions = featureNodeUpdate
+            .select('g.quick-edit-actions-container')
+            .selectAll('g.quick-edit-actions')
+            .data(
+                (d) => (d3Data.quickEdit && d3Data.featureModelTree.editRights ? [d] : []),
+                (d) => d.data.id
+            );
+
+        const quickEditActionsEnter = quickEditActions
+            .enter()
+            .append('g')
+            .classed('quick-edit-actions', true);
+        const quickEditActionsUpdate =
+            quickEditActionsEnter.merge(quickEditActions);
+
+        // Bottom circle
+        const bottomEnter = quickEditActionsEnter
+            .append('g')
+            .classed('quick-edit-action-child', true)
+            .on('click', (e, d3Node) => {
+                e.stopPropagation();
+                d3Data.d3AddNodeIndex = d3Node.data.children.length;
+                d3Data.featureModelTree.openAddAsChildDialog(d3Node);
+            });
+        drawQuickEditGroup(bottomEnter);
+        quickEditActionsUpdate
+            .select('g.quick-edit-action-child')
+            .attr('transform', (d3Node) =>
+                d3Data.direction === 'v'
+                    ? `translate(0, ${RECT_HEIGHT})`
+                    : `translate(${d3Node.width}, 0)`
+            );
+
+        // Left side circle
+        const leftEnter = quickEditActionsEnter
+            .filter((d3Node) => !d3Node.data.isRoot)
+            .append('g')
+            .classed('quick-edit-action-left', true)
+            .on('click', (e, d3Node) => {
+                e.stopPropagation();
+                d3Data.d3AddNodeIndex = d3Node.data.parent.children.indexOf(
+                    d3Node.data
+                );
+                d3Data.featureModelTree.openAddAsSiblingDialog(d3Node);
+            });
+        drawQuickEditGroup(leftEnter);
+        quickEditActionsUpdate
+            .select('g.quick-edit-action-left')
+            .attr('transform', (d3Node) =>
+                d3Data.direction === 'v'
+                    ? `translate(${-d3Node.width / 2}, ${RECT_HEIGHT / 2})`
+                    : `translate(${d3Node.width / 2}, -${RECT_HEIGHT / 2})`
+            );
+
+        // Right side circle
+        const rightEnter = quickEditActionsEnter
+            .filter((d3Node) => !d3Node.data.isRoot)
+            .append('g')
+            .classed('quick-edit-action-right', true)
+            .on('click', (e, d3Node) => {
+                e.stopPropagation();
+                d3Data.d3AddNodeIndex =
+                    d3Node.data.parent.children.indexOf(d3Node.data) + 1;
+                d3Data.featureModelTree.openAddAsSiblingDialog(d3Node);
+            });
+        drawQuickEditGroup(rightEnter);
+        quickEditActionsUpdate.select('g.quick-edit-action-right').attr(
+            'transform',
+            (d3Node) => `
+    translate(${d3Node.width / 2}, ${RECT_HEIGHT / 2})`
+        );
+
+        quickEditActions.exit().remove();
+    }
+
+    function drawQuickEditGroup(d3Element) {
+        // Enlarge on mobile
+        const radius =
+            'ontouchstart' in window
+                ? QUICK_EDIT_RADIUS * 1.75
+                : QUICK_EDIT_RADIUS;
+        d3Element.append('circle').attr('fill', '#4caf50').attr('r', radius);
+        d3Element
+            .append('path')
+            .attr(
+                'd',
+                `M -0.5 ${-(2 * radius) / 3} h 1 v ${(4 * radius) / 3} h -1 z`
+            )
+            .attr('fill', 'white');
+        d3Element
+            .append('path')
+            .attr(
+                'd',
+                `M ${-(2 * radius) / 3} -0.5 v 1 h ${(4 * radius) / 3} v -1 z`
+            )
+            .attr('fill', 'white');
+    }
+
+    function updateChildrenCount(d3Data, featureNodeUpdate) {
+        // Enter triangle with number of direct and total children.
+        const childrenCount = featureNodeUpdate
+            .select('g.children-count-container')
+            .selectAll('g.children-count')
+            .data(
+                (d) => (d.data.isLeaf() || !d.data.isCollapsed ? [] : [d]),
+                (d) => d.id
+            );
+
+        const childrenCountEnter = childrenCount
+            .enter()
+            .append('g')
+            .classed('children-count', true);
+        childrenCountEnter
+            .append('polygon')
+            .attr('fill', 'white')
+            .attr('points', calculateTriangle());
+        childrenCountEnter
+            .append('text')
+            .classed('children-count-text', true)
+            .classed('direct-children', true)
+            .attr('dy', 5)
+            .attr('font-size', CHILDREN_COUNT_FONT_SIZE);
+        childrenCountEnter
+            .append('text')
+            .classed('children-count-text', true)
+            .classed('total-children', true)
+            .attr('dy', 15)
+            .attr('font-size', CHILDREN_COUNT_FONT_SIZE);
+
+        const childrenCountUpdate = childrenCountEnter.merge(childrenCount);
+        childrenCountUpdate.attr('transform', (d3Node) => {
+            if (d3Data.direction === 'v') {
+                const x = 0;
+                const y = RECT_HEIGHT + TRIANGLE_BORDER_OFFSET;
+                return `translate(${x}, ${y})`;
+            } else {
+                const angle = TRIANGLE_HORIZONTAL_ROTATION;
+                const x = d3Node.width + TRIANGLE_BORDER_OFFSET;
+                const y = 0;
+                return `translate(${x}, ${y})rotate(${angle})`;
+            }
+
+        });
+        childrenCountUpdate
+            .selectAll('text.direct-children')
+            .text((d3Node) => d3Node.data.childrenCount());
+        childrenCountUpdate
+            .selectAll('text.total-children')
+            .text((d3Node) => d3Node.data.totalSubnodesCount());
+
+        childrenCount.exit().remove();
+    }
+
+    function updatePseudoNodes(d3Data, visibleD3Nodes) {
+        const pseudoNode = d3Data.container.featureNodesContainer
+            .selectAll('g.pseudo-node')
+            .data(
+                visibleD3Nodes.filter(
+                    (d3Node) => d3Node.data instanceof PseudoNode
+                ),
+                (d3Node) => d3Node.id || (d3Node.id = ++d3Data.nodeIdCounter)
+            );
+        const pseudoNodeEnter = pseudoNode
+            .enter()
+            .append('g')
+            .classed('pseudo-node', true)
+            .on('click', (_, d3Node) => {
+                d3Node.data.unhideHiddenNodes();
+                updateSvg(d3Data);
+            });
+        pseudoNodeEnter.append('circle').attr('r', PSEUDO_NODE_SIZE);
+        pseudoNodeEnter
+            .append('text')
+            .attr('font-size', 30)
+            .attr('dy', 2)
+            .attr('dx', -12)
+            .text('...');
+
+        const pseudoNodeUpdate = pseudoNodeEnter.merge(pseudoNode);
+        pseudoNodeUpdate.attr('transform', (d3Node) => {
+            let dx = d3Node.x;
+            let dy = d3Node.y;
+            if (d3Data.direction === 'v') {
+                dy += RECT_HEIGHT / 2;
+            } else {
+                dx += d3Node.width / 2;
+            }
+            return `
+    translate(${dx}, ${dy})`;
+        });
+
+        pseudoNode.exit().remove();
+    }
+
+    function updateHighlightedConstraints(d3Data, visibleD3Nodes) {
+        const highlightedNodes = visibleD3Nodes
+            .filter((d3Node) => d3Node.data instanceof FeatureNode)
+            .map((d3Node) => ({
+                d3Node: d3Node,
+                highlightedConstraints: d3Node.data.getHighlightedConstraints(),
+            }))
+            .filter((d) => d.highlightedConstraints.length);
+
+        const highlightedConstraintNodes =
+            d3Data.container.highlightedConstraintsContainer
+                .selectAll('g.highlighted-constraints')
+                .data(
+                    highlightedNodes,
+                    (d) => d.d3Node.id || (d.d3Node.id = ++d3Data.nodeIdCounter)
+                );
+
+        const highlightedConstraintNodesEnter = highlightedConstraintNodes
+            .enter()
+            .append('g')
+            .classed('highlighted-constraints', true);
+
+        const highlightedConstraintNodeRects = highlightedConstraintNodesEnter
+            .merge(highlightedConstraintNodes)
+            .selectAll('rect')
+            .data(
+                (d) =>
+                    d.highlightedConstraints.map((c) => ({
+                        constraint: c,
+                        d3Node: d.d3Node,
+                    })),
+                (d) => d.constraint.toString() + d.d3Node.id
+            );
+
+        // Enter highlighted constraint rects
+        const highlightedConstraintNodeRectsEnter = highlightedConstraintNodeRects
+            .enter()
+            .append('rect')
+            .attr('stroke', (json) => json.constraint.color)
+            .attr('stroke-width', STROKE_WIDTH_CONSTANT)
+            .attr('fill', 'transparent');
+
+        // Update highlighted constraint rects
+        highlightedConstraintNodeRectsEnter
+            .merge(highlightedConstraintNodeRects)
+            .attr('x', (constraint) =>
+                d3Data.direction === 'v' ? -constraint.d3Node.width / 2 : 0
+            )
+            .attr('y', d3Data.direction === 'v' ? 0 : -RECT_HEIGHT / 2)
+            .attr(
+                'height',
+                (_, i) =>
+                    RECT_HEIGHT +
+                    i * 2 * STROKE_WIDTH_CONSTANT +
+                    STROKE_WIDTH_CONSTANT
+            )
+            .attr(
+                'width',
+                (constraint, i) =>
+                    constraint.d3Node.width +
+                    i * 2 * STROKE_WIDTH_CONSTANT +
+                    STROKE_WIDTH_CONSTANT
+            )
+            .attr(
+                'transform',
+                (json, i) => `
+    translate(${
+                    json.d3Node.x -
+                    i * STROKE_WIDTH_CONSTANT -
+                    STROKE_WIDTH_CONSTANT / 2
+                },
+        ${
+                    json.d3Node.y -
+                    i * STROKE_WIDTH_CONSTANT -
+                    STROKE_WIDTH_CONSTANT / 2
+                })`
+            );
+
+        // Remove constraints highlighted nodes
+        highlightedConstraintNodes.exit().remove();
+        highlightedConstraintNodeRects.exit().remove();
+    }
+
+    function updateLinks(d3Data, visibleD3Nodes) {
+        const links = visibleD3Nodes
+            .slice(1)
+            .filter((d3Node) => d3Node.data instanceof FeatureNode);
+        const link = d3Data.container.linksContainer
+            .selectAll('path.link')
+            .data(links, (d3Node) => d3Node.id);
+
+        const linkEnter = link.enter().insert('path', 'g').classed('link', true);
+
+        const linkUpdate = linkEnter.merge(link);
+        linkUpdate
+            .classed('is-searched-link', (d3Node) => d3Node.data.isSearched)
+            .attr('d', (d3Node) => {
+                if (d3Data.direction === 'v') {
+                    return createLinkVertically(d3Node.parent, d3Node);
+                } else {
+                    return createLinkHorizontally(
+                        d3Node.parent,
+                        d3Node
+                    );
+                }
+            });
+
+        link.exit().remove();
+    }
+
+    {#function updateColoring(d3Data) {#}
+    {#    const allNodes = d3Data.root.data.descendants();#}
+    {#    colorNodes(allNodes, d3Data.coloringIndex);#}
+    {# } #}
+
+    function updateSegments(d3Data, visibleD3Nodes) {
+        const segment = d3Data.container.segmentsContainer
+            .selectAll('path.segment')
+            .data(
+                visibleD3Nodes.filter(
+                    (d3Node) =>
+                        d3Node.data instanceof FeatureNode &&
+                        (d3Node.data.isAlt() || d3Node.data.isOr())
+                ),
+                (d3Node) => d3Node.id || (d3Node.id = ++d3Data.nodeIdCounter)
+            );
+
+        const segmentEnter = segment
+            .enter()
+            .append('path')
+            .classed('segment', true);
+
+        // Segment update.service.js
+        segmentEnter
+            .merge(segment)
+            .classed('alt-group', (d3Node) => d3Node.data.isAlt())
+            .classed('or-group', (d3Node) => d3Node.data.isOr())
+            .attr('d', (d3Node) => {
+                if (d3Data.direction === 'h') {
+                    return createGroupSegmentHorizontally(
+                        d3Node,
+                        GROUP_SEGMENT_RADIUS
+                    );
+                } else {
+                    return createGroupSegmentVertically(
+                        d3Node,
+                        GROUP_SEGMENT_RADIUS
+                    );
+                }
+            })
+            .attr('transform', (d3Node) => {
+                let dx = d3Node.x;
+                let dy = d3Node.y;
+                if (d3Data.direction === 'h') {
+                    dx += d3Node.width;
+                } else {
+                    dy += RECT_HEIGHT;
+                }
+                return `
+    translate(${dx}, ${dy})`;
+            });
+
+        segment.exit().remove();
+    }
+
+    function updateSvg(d3Data) {
+        /*const start = performance.now();*/
+
+        // Calculate rect widths of all d3Nodes once for better performance instead of repeatedly during update.
+        d3Data.root.descendants().forEach((d3Node) => {
+            d3Node.width = calcRectWidth(d3Data, d3Node);
+
+            if (d3Node.data instanceof FeatureNode) {
+                const level = d3Node.data.level();
+                if (d3Data.maxHorizontallyLevelWidth.length <= level) {
+                    d3Data.maxHorizontallyLevelWidth.push(0);
+                }
+
+                if (d3Data.maxHorizontallyLevelWidth[level] < d3Node.width) {
+                    d3Data.maxHorizontallyLevelWidth[level] = d3Node.width;
+                }
+            }
+        });
+
+        // Flexlayout belongs to a d3-plugin that calculates the width between all nodes dynamically.
+        const visibleD3Nodes = d3Data.flexlayout(d3Data.root).descendants();
+
+        // Swap x and y to draw from left to right instead of drawing from top to bottom
+        if (d3Data.direction === 'h') {
+            visibleD3Nodes.forEach((d3Node) => {
+                const x = d3Node.x;
+                d3Node.x = d3Node.y;
+                d3Node.y = x;
+            });
+        }
+
+        {#updateColoring(d3Data);#}
+        {#updateHighlightedConstraints(d3Data, visibleD3Nodes);#}
+        updateSegments(d3Data, visibleD3Nodes);
+        updateFeatureNodes(d3Data, visibleD3Nodes);
+        updatePseudoNodes(d3Data, visibleD3Nodes);
+        updateLinks(d3Data, visibleD3Nodes);
+
+        /*console.log('Rendertime', performance.now() - start);*/
+    }
+
+    // Calculates rect-width dependent on font-size dynamically.
+    function calcRectWidth(d3Data, d3Node) {
+        if (d3Node.data instanceof FeatureNode) {
+            return (
+                (d3Data.isShortenedName
+                    ? d3Node.data.displayName.length
+                    : d3Node.data.name.length) *
+                (FEATURE_FONT_SIZE *
+                    MONOSPACE_HEIGHT_WIDTH_FACTOR) +
+                RECT_MARGIN.left +
+                RECT_MARGIN.right
+            );
+        } else {
+            return PSEUDO_NODE_SIZE * 2;
+        }
+    }
+
+    let touchtime = 0;
+
+    function dblClickEvent(event, d3Data, d3Node) {
+        if (touchtime === 0) {
+            // set first click
+            touchtime = new Date().getTime();
+        } else {
+            // compare first click to this click and see if they occurred within double click threshold
+            if (new Date().getTime() - touchtime < 300) {
+                // double click occurred
+                event.preventDefault();
+                d3Node.data.toggleCollapse();
+                updateSvg(d3Data);
+                touchtime = 0;
+            } else {
+                // not a double click so set as a new first click
+                touchtime = new Date().getTime();
+            }
+        }
+    }
+
+    // --
+
+    // -- createPaths
+
+    // Helper functions for drawing alternative-group and and-group paths
+    const MOVE = 'M', LINE = 'L', ARC = 'A', CLOSE = 'Z';
+
+    function polarToCartesian(point, radius, degrees) {
+        const rad = degrees * Math.PI / 180.0;
+        return {
+            x: point.x + (radius * Math.cos(rad)),
+            y: point.y + (radius * Math.sin(rad)),
+        };
+    }
+
+    function cartesianToAngle(centerPoint, point) {
+        return Math.atan2(point.y - centerPoint.y, point.x - centerPoint.x) * 180.0 / Math.PI;
+    }
+
+    function translateToPathD(...data) {
+        return data.join(' ');
+    }
+
+    function createPathDOfSegment(centerPoint, radius, startAngle, endAngle) {
+        const start = polarToCartesian(centerPoint, radius, startAngle);
+        const end = polarToCartesian(centerPoint, radius, endAngle);
+
+        const a = translateToPathD(MOVE, toPath(end), ARC, radius, radius, 0, 0, 1, toPath(start));
+        const b = translateToPathD(LINE, toPath(centerPoint), CLOSE);
+
+        return translateToPathD(a, b, CLOSE);
+    }
+
+    function toPath({x, y}) {
+        return `${x},${y}`;
+    }
+
+    function createGroupSegmentHorizontally(d3Node, radius) {
+        const rectAnchor = {x: d3Node.x + d3Node.width, y: d3Node.y};
+        return createGroupSegment(d3Node, radius, rectAnchor);
+    }
+
+    function createGroupSegmentVertically(d3Node, radius) {
+        const rectAnchor = {x: d3Node.x, y: d3Node.y + RECT_HEIGHT};
+        return createGroupSegment(d3Node, radius, rectAnchor);
+    }
+
+    function createGroupSegment(d3Node, radius, rectAnchor) {
+        if (d3Node.children && d3Node.children.length > 1) {
+
+            const firstChild = d3Node.children[0].isPseudoElement ? d3Node.children[1] : d3Node.children[0];
+            const lastChild = d3Node.children[d3Node.children.length - 1].isPseudoElement ? d3Node.children[d3Node.children.length - 2] : d3Node.children[d3Node.children.length - 1];
+
+            let startAngle = cartesianToAngle(rectAnchor, firstChild);
+            let endAngle = cartesianToAngle(rectAnchor, lastChild);
+            if (startAngle < endAngle) {
+                const tmp = startAngle;
+                startAngle = endAngle;
+                endAngle = tmp;
+            }
+            return createPathDOfSegment({x: 0, y: 0}, radius, startAngle, endAngle);
+        }
+
+        return null;
+    }
+
+    function createLinkVertically(src, dest) {
+        const src_y = src.y + RECT_HEIGHT;
+        return `M ${src.x} ${src_y} L ${dest.x} ${dest.y}`;
+    }
+
+    function createLinkHorizontally(src, dest) {
+        return `M ${src.x + src.width} ${src.y} L ${dest.x} ${dest.y}`;
+    }
+
+    function calculateTriangle() {
+        const base = 35;
+
+        const h = Math.sin(60) * base;
+
+        const [ax, ay] = [-(base / 2), base / 2];
+        const [bx, by] = [base / 2, base / 2];
+        const [cx, cy] = [0, h];
+
+        return [`${ax},${ay}`, `${bx},${by}`, `${cx},${cy}`];
+    }
+
+    // --
 
     // -- const --
     const RECT_HEIGHT = 35;
     const NODE_COLOR = "rgb(204, 204, 255)";
     const NODE_EDITED_COLOR = "rgb(197,196,120)";
     const NODE_ABSTRACT_COLOR = "#ebebff";
+
+    const FEATURE_FONT_SIZE = 16;
+    const MONOSPACE_HEIGHT_WIDTH_FACTOR = 0.6;
+    const RECT_MARGIN = {right: 8, left: 8};
+    const PSEUDO_NODE_SIZE = 20;
+    const GROUP_SEGMENT_RADIUS = 25;
+    const CHILDREN_COUNT_FONT_SIZE = 7;
+
+    const TRIANGLE_HORIZONTAL_ROTATION=270;
+    const TRIANGLE_BORDER_OFFSET=11;
 
     const DISPLAY_NAME_LENGTH = 8;
     const DISPLAY_NAME_RAW = 5;
@@ -506,6 +1175,13 @@
             direction: 'v', // h = horizontally, v = vertically
             maxHorizontallyLevelWidth: [],
             featureModelTree: undefined,
+            container: {
+                highlightedConstraintsContainer: undefined,
+                linksContainer: undefined,
+                segmentsContainer: undefined,
+                featureNodesContainer: undefined,
+                dragContainer: undefined,
+            },
         }
     }
 
@@ -1540,6 +2216,7 @@
     const rootNode = data.rootNode;
     console.log("Initializing...")
     init_initialize(d3Data, rootNode);
+    reset(d3Data);
 
 </script>
 <style>

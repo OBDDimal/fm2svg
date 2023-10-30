@@ -1,0 +1,121 @@
+<svg preserveaspectratio="xMidYMid meet" viewbox="0 0 1850 496"><style>
+    .ghost-circle {
+        fill: red;
+        fill-opacity: 0.2;
+    }
+
+    .ghost-circle-highlighted {
+        fill-opacity: 0.8;
+    }
+
+    #svg-container {
+        width: 100%;
+        height: calc(100vh - 64px);
+    }
+
+    .node {
+        cursor: pointer;
+        vertical-align: middle;
+    }
+
+    .is-searched-feature {
+        fill: lightcoral;
+    }
+
+    .node rect {
+        transition: all 0.75s;
+        stroke: #888;
+        stroke-width: 1px;
+    }
+
+    .node text {
+        font-family: monospace;
+        text-anchor: middle;
+        user-select: none;
+    }
+
+    .and-group-circle {
+        stroke: #888;
+        stroke-width: 1.5px;
+        opacity: 0;
+    }
+
+    .optional-and-group-circle {
+        fill: white;
+        opacity: 1;
+    }
+
+    .mandatory-and-group-circle {
+        fill: rgb(136, 136, 136);
+        opacity: 1;
+    }
+
+    .alt-group {
+        fill: white;
+        stroke: #888;
+        stroke-width: 1.5px;
+    }
+
+    .or-group {
+        fill: #888;
+        stroke: #888;
+        stroke-width: 1.5px;
+    }
+
+    .link {
+        fill: none;
+        stroke: #888;
+        stroke-width: 1.5px;
+    }
+
+    .is-searched-link {
+        fill: none;
+        stroke: lightcoral;
+        stroke-width: 1.5px;
+    }
+
+    .children-count > circle {
+        fill: white;
+        stroke: #888;
+        stroke-width: 1.5px;
+    }
+
+    .pseudo-node {
+        cursor: pointer;
+        vertical-align: middle;
+    }
+
+    .pseudo-node circle {
+        fill: white;
+        stroke: #888;
+        stroke-width: 1.5px;
+    }
+
+    .feature-model-constraints {
+        position: absolute;
+        background-color: white;
+        bottom: 0;
+        width: 100%;
+        box-shadow: 0 10px 10px #888, 0px -10px 10px #888;
+        padding: 2rem;
+        min-height: 10%;
+        max-height: 20%;
+        overflow: scroll;
+    }
+
+    polygon {
+        stroke: #888;
+    }
+
+    .children-count-text {
+        fill: black !important;
+    }
+
+    .blackText {
+        fill: black !important;
+    }
+
+    .whiteText {
+        fill: white !important;
+    }
+</style><g transform="translate(923,149.404601393946) scale(4.353890627425238)"><g class="highlighted-constraints-container"></g><g class="link-container"><path class="link" d="M 0 35 L -62.69999999999999 110"></path><path class="link" d="M 0 35 L 62.7 110"></path></g><g class="segments-container"></g><g class="feature-node-container"><g class="node" transform="translate(0, 0)"><g class="rect-and-text"><rect height="35" fill="rgb(204, 204, 255)" x="-27.2" y="0" width="54.4"></rect><text font-size="16" font-style="normal" dy="23" x="0">Root</text></g><circle class="and-group-circle" r="6"></circle><g class="children-count-container"></g><g class="quick-edit-actions-container"></g></g><g class="node" transform="translate(-62.69999999999999, 110)"><g class="rect-and-text"><rect height="35" fill="rgb(204, 204, 255)" x="-51.199999999999996" y="0" width="102.39999999999999"></rect><text font-size="16" font-style="normal" dy="23" x="0">Feature A</text></g><circle class="and-group-circle mandatory-and-group-circle" r="6"></circle><g class="children-count-container"></g><g class="quick-edit-actions-container"></g></g><g class="node" transform="translate(62.7, 110)"><g class="rect-and-text"><rect height="35" fill="rgb(204, 204, 255)" x="-51.199999999999996" y="0" width="102.39999999999999"></rect><text font-size="16" font-style="normal" dy="23" x="0">Feature B</text></g><circle class="and-group-circle optional-and-group-circle" r="6"></circle><g class="children-count-container"></g><g class="quick-edit-actions-container"></g></g></g><g class="drag-container"></g></g></svg>
