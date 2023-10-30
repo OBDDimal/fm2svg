@@ -12,6 +12,8 @@ import xmltodict
 
 from pprint import pprint
 
+from tempfile import NamedTemporaryFile
+
 # -----------------------------------------------------------------------------
 
 UPLOAD_FOLDER = '/tmp/'
@@ -32,7 +34,16 @@ def index():
 def render():
     # TODO: Read JSON from payload
     # TODO: JSON + D3 (Jinja2)
-    return render_template("index.html", title="test")
+    render_template("index.html", title="test")
+
+    with tempfile.NamedTemporaryFile() as ntf:
+        with open(filename, "w+") as file:
+            file.write(render_template("index.html", title="test"))
+        
+        content = downloadSVG(ntf)
+
+
+    return Response("")
 
 
 @app.route('/', methods=["POST"])
