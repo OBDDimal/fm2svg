@@ -5,6 +5,17 @@ ENV FIREFOX_VER 87.0
 WORKDIR /app
 
 RUN set -x \
+    && apt-get update \
+    && apt-get install -y \
+    python3 python3-pip \
+    fonts-liberation libasound2 libatk-bridge2.0-0 \
+    libnspr4 libnss3 lsb-release xdg-utils libxss1 libdbus-glib-1-2 libcups2 \
+    libgtk-3-dev unzip \
+    curl unzip wget dumb-init nano libgbm1 libre2-dev \
+    xvfb \
+    expect openvpn openvpn-systemd-resolved
+
+RUN set -x \
    && apt update \
    && apt upgrade -y \
    && apt install -y \

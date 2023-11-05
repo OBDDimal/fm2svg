@@ -2,6 +2,8 @@ import os
 import tempfile
 import re
 from os import path, urandom
+
+from pyvirtualdisplay import Display
 from flask import Flask, flash, request, Response, jsonify, render_template
 from selenium.webdriver.common.by import By
 
@@ -55,9 +57,25 @@ def upload():
 # TODO: on get request -> Upload button
 
 def download_svg(source_file):
-    options = webdriver.ChromeOptions()
+    # ---
+
+    display = Display(visible=0, size=(800, 600))
+    display.start()
+    #
+    # firefox_profile = webdriver.FirefoxProfile()
+    # firefox_profile.set_preference('browser.download.folderList', 2)
+    # firefox_profile.set_preference('browser.download.manager.showWhenStarting', False)
+    # firefox_profile.set_preference('browser.download.dir', os.getcwd())
+    # firefox_profile.set_preference('browser.helperApps.neverAsk.saveToDisk', 'text/csv')
+
+    options = webdriver.FirefoxOptions()
+    options.binary_location = r'/opt/firefox/'
     options.headless = True
-    driver = webdriver.Chrome(options=options)
+
+    # ---
+
+    driver = webdriver.Firefox(options=options)
+
     driver.implicitly_wait(10)
     driver.get(source_file)
 
@@ -67,6 +85,7 @@ def download_svg(source_file):
     style = driver.find_element(by=By.TAG_NAME, value="style").get_attribute("outerHTML")
 
     driver.quit()
+    display.stop()
 
     final_content = ("<svg preserveAspectRatio=\"xMidYMid meet\" " + viewbox + " version=\"1.1\" "
                      + "xmlns=\"http://www.w3.org/2000/svg\">" + style + svg + "</svg>")
