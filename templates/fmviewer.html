@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FM2SVG</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+<script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-flextree@2.0.0/build/d3-flextree.js"></script>
+<body>
+<div id="svg-container"></div>
+<base href=".">
+<button class="btn" id="download" onclick="download()"><i class="fa fa-download"></i> Download</button>
+
+<script>
+    function download() {
+        try {
+            var isFileSaverSupported = !!new Blob();
+        } catch (e) {
+            alert("blob not supported");
+        }
+
+        var html = d3.select("svg")
+            .attr("version", 1.1)
+            .attr("xmlns", "http://www.w3.org/2000/svg")
+            .node().parentNode.innerHTML;
+
+        const styleString = document.getElementsByTagName('style')[0].outerHTML;
+
+        var split = html.split(">");
+        split[1] = styleString + split[1];
+        html = split.join('>');
+
+
+        var blob = new Blob([html], {type: "image/svg+xml"});
+        if (window.navigator.msSaveOrOpenBlob) // IE10+
+            window.navigator.msSaveOrOpenBlob(blob, "model.svg");
+        else {
+            var a = document.createElement("a");
+            url = URL.createObjectURL(blob);
+            a.href = url;
+            a.download = "model.svg";
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function () {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }, 0);
+        }
+    };
+</script>
+
+<script type="module">
+    const xml = `{{ xml|safe }}`;
+
+    // ---------------------------------------------Init-Script---------------------------------------------------------
+    function init_initData(d3Data, data) {
+        // Create root-feature-node with d3 and the data of the feature-model.
+        d3Data.root = d3.hierarchy(data, (node) => node.children);
+        d3Data.root.each((d3Node) => (d3Node.data.d3Node = d3Node));
+    }
+
+    function init_initialize(d3Data, data) {
+        // Flexlayout belongs to a d3-plugin that calculates the width between all nodes dynamically.
+        d3Data.flexlayout = d3.flextree()
+            .nodeSize((d3Node) => init_calcNodeSize(d3Data, d3Node))
+            .spacing((d3NodeA, d3NodeB) => d3NodeA.path(d3NodeB).length);
+
+        init_initData(d3Data, data);
+
+        d3Data.zoom = d3
+            .zoom()
+            //.scaleExtent([0.1, 8])
+            .on('zoom', (event) => svgContent.attr('transform', event.transform));
+
+        // Create svg-container.
+        const svg = d3
+            .select('#svg-container')
+            .append('svg')
+            .attr('preserveAspectRatio', 'xMidYMid meet')
+            .call(d3Data.zoom) // Zooming and penning.
+            .on('dblclick.zoom', null);
+
+        const svgContent = svg.append('g');
+
+        {#d3Data.container.highlightedConstraintsContainer = svgContent#}
+        {#    .append('g')#}
+        {#    .classed('highlighted-constraints-container', true);#}
+
+        d3Data.container.linksContainer = svgContent
+            .append('g')
+            .classed('link-container', true);
+
+        d3Data.container.segmentsContainer = svgContent
+            .append('g')
+            .classed('segments-container', true);
+
+        d3Data.container.featureNodesContainer = svgContent
+            .append('g')
+            .classed('feature-node-container', true);
+
+        {#d3Data.container.dragContainer = svgContent#}
+        {#    .append('g')#}
+        {#    .classed('drag-container', true);#}
+
+        // // Listen to window resize.
+        window.onresize = () => window_resize_update(d3Data);
+        window_resize_update(d3Data);
+    }
+
+    function init_calcNodeSize(d3Data, d3Node) {
+        let width, height;
+        switch (d3Data.direction) {
+            case 'v':
+                width = d3Node.width + d3Data.spaceBetweenSiblings;
+                height = RECT_HEIGHT + d3Data.spaceBetweenParentChild;
+                break;
+            case 'h':
+                width = RECT_HEIGHT + d3Data.spaceBetweenSiblings;
+                height =
+                    d3Data.maxHorizontallyLevelWidth[d3Node.data.level()] +
+                    d3Data.spaceBetweenParentChild;
+                break;
+        }
+
+        return [width, height];
+    }
+
+    function reset(d3Data, uncollapsedLevels = 4, maxChildrenCount = 3) {
+        // Collapses all nodes after depth 1.
+        {#d3Data.root.data.each(node => node.collapse());#}
+
+        let currentChildren = [d3Data.root.data];
+        for (let i = 1; i <= uncollapsedLevels; i++) {
+            currentChildren.forEach(child => {
+                if (child.children.length <= maxChildrenCount) {
+                    child.uncollapse(false);
+                }
+            });
+            currentChildren = currentChildren
+                .map(parent => parent.children.length <= maxChildrenCount ? parent.children : [])
+                .flat();
+
+            if (currentChildren.length === 0) {
+                break;
+            }
+        }
+
+        updateSvg(d3Data);
+        zoomFit(d3Data);
+    }
+
+    function zoomFit(d3Data, padding = 0.75) {
+        let bounds = document.querySelector('svg > g').getBBox();
+        let fullWidth = document.querySelector('svg').getBoundingClientRect().width,
+            fullHeight = document.querySelector('svg').getBoundingClientRect().height;
+        let width = bounds.width,
+            height = bounds.height;
+        let midX = bounds.x + width / 2,
+            midY = bounds.y + height / 2;
+
+        // nothing to fit
+        if (width === 0 || height === 0) {
+            return;
+        }
+
+        let scale = padding / Math.max(width / fullWidth, height / fullHeight);
+
+        d3.select('svg').call(d3Data.zoom.translateTo, midX, midY).call(d3Data.zoom.scaleTo, scale);
+    }
+
+    // -----------------------------------------------------------------------------------------------------------------
+
+    // -- windowResize
+    function window_resize_update(d3Data) {
+        d3.select('#svg-container')
+            .style('height', window.innerHeight - 100);
+
+        d3.select('#svg-container > svg')
+            .attr(
+                'viewBox',
+                `0 0 ${window.innerWidth} ${window.innerHeight - 64}`,
+            );
+
+        zoomFit(d3Data);
+    }
+
+    // --
+
+    // -- update-Script --
+    function updateFeatureNodes(d3Data, visibleD3Nodes) {
+        const featureNode = d3Data.container.featureNodesContainer
+            .selectAll('g.node')
+            .data(
+                visibleD3Nodes.filter(
+                    (d3Node) => d3Node.data instanceof FeatureNode
+                ),
+                (d3Node) => d3Node.id || (d3Node.id = ++d3Data.nodeIdCounter)
+            );
+
+        // Enter new nodes
+        const featureNodeEnter = featureNode
+            .enter()
+            .append('g')
+            .classed('node', true);
+        {#.call(d3Data.drag.listener)#}
+        {#// Highlight and reset highlighting of ghost-nodes during drag and drop of feature-nodes.#}
+        {#.on('touchmove', (event) => ghostNodeTouchMove(event, d3Data), true)#}
+        {#// Open contextmenu with right-click on d3Node.#}
+        {#.on('contextmenu', (event, d3Node) => {#}
+        {#    // only use contextmenu on non-mobile devices#}
+        {#    if (!('ontouchstart' in window)) {#}
+        {#        event.preventDefault();#}
+        {#        d3Data.contextMenu.selectedD3Node = d3Node;#}
+        {#        d3Data.contextMenu.event = event;#}
+        {#    } else {#}
+        {#        event.preventDefault();#}
+        {#    }#}
+        {# }); #}
+
+        const rectAndTextEnter = featureNodeEnter
+            .append('g')
+            .classed('rect-and-text', true);
+        rectAndTextEnter.append('rect').attr('height', RECT_HEIGHT);
+        rectAndTextEnter
+            .append('text')
+            .attr('font-size', FEATURE_FONT_SIZE);
+
+        featureNodeEnter
+            .append('circle')
+            .classed('and-group-circle', true)
+            .attr('r', MANDATORY_CIRCLE_RADIUS);
+
+        // Update nodes
+        const featureNodeUpdate = featureNodeEnter.merge(featureNode);
+        featureNodeUpdate.attr(
+            'transform',
+            (d3Node) => `translate(${d3Node.x}, ${d3Node.y})`
+        );
+        featureNodeUpdate
+            .select('.and-group-circle')
+            .classed(
+                'mandatory-and-group-circle',
+                (d3Node) =>
+                    d3Node.parent &&
+                    d3Node.parent.data.isAnd() &&
+                    d3Node.data.isMandatory
+            )
+            .classed(
+                'optional-and-group-circle',
+                (d3Node) =>
+                    d3Node.parent &&
+                    d3Node.parent.data.isAnd() &&
+                    !d3Node.data.isMandatory
+            );
+
+        const rectAndTextUpdate = featureNodeUpdate.select('.rect-and-text');
+        rectAndTextUpdate
+            .select('rect')
+            .classed('is-searched-feature', (d3Node) => d3Node.data.isSearched)
+            .attr('fill', (d3Node) => d3Node.data.color())
+            .attr('x', (d3Node) =>
+                d3Data.direction === 'v' ? -d3Node.width / 2 : 0
+            )
+            .attr('y', d3Data.direction === 'v' ? 0 : -RECT_HEIGHT / 2)
+            .attr('width', (d3Node) => d3Node.width);
+        rectAndTextUpdate
+            .select('text')
+            .attr('font-style', (d3Node) =>
+                d3Node.data.isAbstract ? 'italic' : 'normal'
+            )
+            .attr(
+                'dy',
+                d3Data.direction === 'v' ? RECT_HEIGHT / 2 + 5.5 : 5.5
+            )
+            .attr('x', d3Data.direction === 'v' ? 0 : (d3Node) => d3Node.width / 2)
+            .classed('whiteText', (d3Node) => {
+                let color = d3Node.data.color();
+                const rgb = color.replace(/[^\d,]/g, '').split(',');
+                return rgb[0] * 0.299 + rgb[1] * 0.587 + rgb[2] * 0.114 <= 186;
+            })
+            .text((d3Node) =>
+                d3Data.isShortenedName ? d3Node.data.displayName : d3Node.data.name
+            );
+
+        // Remove old/invisible nodes.
+        featureNode.exit().remove();
+
+        featureNodeEnter.append('g').classed('children-count-container', true);
+        featureNodeEnter.append('g').classed('quick-edit-actions-container', true);
+
+        updateChildrenCount(d3Data, featureNodeUpdate);
+        {#updateQuickEditActions(d3Data, featureNodeUpdate);#}
+    }
+
+    function updateQuickEditActions(d3Data, featureNodeUpdate) {
+        const quickEditActions = featureNodeUpdate
+            .select('g.quick-edit-actions-container')
+            .selectAll('g.quick-edit-actions')
+            .data(
+                (d) => (d3Data.quickEdit && d3Data.featureModelTree.editRights ? [d] : []),
+                (d) => d.data.id
+            );
+
+        const quickEditActionsEnter = quickEditActions
+            .enter()
+            .append('g')
+            .classed('quick-edit-actions', true);
+        const quickEditActionsUpdate =
+            quickEditActionsEnter.merge(quickEditActions);
+
+        // Bottom circle
+        const bottomEnter = quickEditActionsEnter
+            .append('g')
+            .classed('quick-edit-action-child', true)
+            .on('click', (e, d3Node) => {
+                e.stopPropagation();
+                d3Data.d3AddNodeIndex = d3Node.data.children.length;
+                d3Data.featureModelTree.openAddAsChildDialog(d3Node);
+            });
+        drawQuickEditGroup(bottomEnter);
+        quickEditActionsUpdate
+            .select('g.quick-edit-action-child')
+            .attr('transform', (d3Node) =>
+                d3Data.direction === 'v'
+                    ? `translate(0, ${RECT_HEIGHT})`
+                    : `translate(${d3Node.width}, 0)`
+            );
+
+        // Left side circle
+        const leftEnter = quickEditActionsEnter
+            .filter((d3Node) => !d3Node.data.isRoot)
+            .append('g')
+            .classed('quick-edit-action-left', true)
+            .on('click', (e, d3Node) => {
+                e.stopPropagation();
+                d3Data.d3AddNodeIndex = d3Node.data.parent.children.indexOf(
+                    d3Node.data
+                );
+                d3Data.featureModelTree.openAddAsSiblingDialog(d3Node);
+            });
+        drawQuickEditGroup(leftEnter);
+        quickEditActionsUpdate
+            .select('g.quick-edit-action-left')
+            .attr('transform', (d3Node) =>
+                d3Data.direction === 'v'
+                    ? `translate(${-d3Node.width / 2}, ${RECT_HEIGHT / 2})`
+                    : `translate(${d3Node.width / 2}, -${RECT_HEIGHT / 2})`
+            );
+
+        // Right side circle
+        const rightEnter = quickEditActionsEnter
+            .filter((d3Node) => !d3Node.data.isRoot)
+            .append('g')
+            .classed('quick-edit-action-right', true)
+            .on('click', (e, d3Node) => {
+                e.stopPropagation();
+                d3Data.d3AddNodeIndex =
+                    d3Node.data.parent.children.indexOf(d3Node.data) + 1;
+                d3Data.featureModelTree.openAddAsSiblingDialog(d3Node);
+            });
+        drawQuickEditGroup(rightEnter);
+        quickEditActionsUpdate.select('g.quick-edit-action-right').attr(
+            'transform',
+            (d3Node) => `
+    translate(${d3Node.width / 2}, ${RECT_HEIGHT / 2})`
+        );
+
+        quickEditActions.exit().remove();
+    }
+
+    function drawQuickEditGroup(d3Element) {
+        // Enlarge on mobile
+        const radius =
+            'ontouchstart' in window
+                ? QUICK_EDIT_RADIUS * 1.75
+                : QUICK_EDIT_RADIUS;
+        d3Element.append('circle').attr('fill', '#4caf50').attr('r', radius);
+        d3Element
+            .append('path')
+            .attr(
+                'd',
+                `M -0.5 ${-(2 * radius) / 3} h 1 v ${(4 * radius) / 3} h -1 z`
+            )
+            .attr('fill', 'white');
+        d3Element
+            .append('path')
+            .attr(
+                'd',
+                `M ${-(2 * radius) / 3} -0.5 v 1 h ${(4 * radius) / 3} v -1 z`
+            )
+            .attr('fill', 'white');
+    }
+
+    function updateChildrenCount(d3Data, featureNodeUpdate) {
+        // Enter triangle with number of direct and total children.
+        const childrenCount = featureNodeUpdate
+            .select('g.children-count-container')
+            .selectAll('g.children-count')
+            .data(
+                (d) => (d.data.isLeaf() || !d.data.isCollapsed ? [] : [d]),
+                (d) => d.id
+            );
+
+        const childrenCountEnter = childrenCount
+            .enter()
+            .append('g')
+            .classed('children-count', true);
+        childrenCountEnter
+            .append('polygon')
+            .attr('fill', 'white')
+            .attr('points', calculateTriangle());
+        childrenCountEnter
+            .append('text')
+            .classed('children-count-text', true)
+            .classed('direct-children', true)
+            .attr('dy', 5)
+            .attr('font-size', CHILDREN_COUNT_FONT_SIZE);
+        childrenCountEnter
+            .append('text')
+            .classed('children-count-text', true)
+            .classed('total-children', true)
+            .attr('dy', 15)
+            .attr('font-size', CHILDREN_COUNT_FONT_SIZE);
+
+        const childrenCountUpdate = childrenCountEnter.merge(childrenCount);
+        childrenCountUpdate.attr('transform', (d3Node) => {
+            if (d3Data.direction === 'v') {
+                const x = 0;
+                const y = RECT_HEIGHT + TRIANGLE_BORDER_OFFSET;
+                return `translate(${x}, ${y})`;
+            } else {
+                const angle = TRIANGLE_HORIZONTAL_ROTATION;
+                const x = d3Node.width + TRIANGLE_BORDER_OFFSET;
+                const y = 0;
+                return `translate(${x}, ${y})rotate(${angle})`;
+            }
+
+        });
+        childrenCountUpdate
+            .selectAll('text.direct-children')
+            .text((d3Node) => d3Node.data.childrenCount());
+        childrenCountUpdate
+            .selectAll('text.total-children')
+            .text((d3Node) => d3Node.data.totalSubnodesCount());
+
+        childrenCount.exit().remove();
+    }
+
+    function updatePseudoNodes(d3Data, visibleD3Nodes) {
+        const pseudoNode = d3Data.container.featureNodesContainer
+            .selectAll('g.pseudo-node')
+            .data(
+                visibleD3Nodes.filter(
+                    (d3Node) => d3Node.data instanceof PseudoNode
+                ),
+                (d3Node) => d3Node.id || (d3Node.id = ++d3Data.nodeIdCounter)
+            );
+        const pseudoNodeEnter = pseudoNode
+            .enter()
+            .append('g')
+            .classed('pseudo-node', true)
+            .on('click', (_, d3Node) => {
+                d3Node.data.unhideHiddenNodes();
+                updateSvg(d3Data);
+            });
+        pseudoNodeEnter.append('circle').attr('r', PSEUDO_NODE_SIZE);
+        pseudoNodeEnter
+            .append('text')
+            .attr('font-size', 30)
+            .attr('dy', 2)
+            .attr('dx', -12)
+            .text('...');
+
+        const pseudoNodeUpdate = pseudoNodeEnter.merge(pseudoNode);
+        pseudoNodeUpdate.attr('transform', (d3Node) => {
+            let dx = d3Node.x;
+            let dy = d3Node.y;
+            if (d3Data.direction === 'v') {
+                dy += RECT_HEIGHT / 2;
+            } else {
+                dx += d3Node.width / 2;
+            }
+            return `
+    translate(${dx}, ${dy})`;
+        });
+
+        pseudoNode.exit().remove();
+    }
+
+    function updateHighlightedConstraints(d3Data, visibleD3Nodes) {
+        const highlightedNodes = visibleD3Nodes
+            .filter((d3Node) => d3Node.data instanceof FeatureNode)
+            .map((d3Node) => ({
+                d3Node: d3Node,
+                highlightedConstraints: d3Node.data.getHighlightedConstraints(),
+            }))
+            .filter((d) => d.highlightedConstraints.length);
+
+        const highlightedConstraintNodes =
+            d3Data.container.highlightedConstraintsContainer
+                .selectAll('g.highlighted-constraints')
+                .data(
+                    highlightedNodes,
+                    (d) => d.d3Node.id || (d.d3Node.id = ++d3Data.nodeIdCounter)
+                );
+
+        const highlightedConstraintNodesEnter = highlightedConstraintNodes
+            .enter()
+            .append('g')
+            .classed('highlighted-constraints', true);
+
+        const highlightedConstraintNodeRects = highlightedConstraintNodesEnter
+            .merge(highlightedConstraintNodes)
+            .selectAll('rect')
+            .data(
+                (d) =>
+                    d.highlightedConstraints.map((c) => ({
+                        constraint: c,
+                        d3Node: d.d3Node,
+                    })),
+                (d) => d.constraint.toString() + d.d3Node.id
+            );
+
+        // Enter highlighted constraint rects
+        const highlightedConstraintNodeRectsEnter = highlightedConstraintNodeRects
+            .enter()
+            .append('rect')
+            .attr('stroke', (json) => json.constraint.color)
+            .attr('stroke-width', STROKE_WIDTH_CONSTANT)
+            .attr('fill', 'transparent');
+
+        // Update highlighted constraint rects
+        highlightedConstraintNodeRectsEnter
+            .merge(highlightedConstraintNodeRects)
+            .attr('x', (constraint) =>
+                d3Data.direction === 'v' ? -constraint.d3Node.width / 2 : 0
+            )
+            .attr('y', d3Data.direction === 'v' ? 0 : -RECT_HEIGHT / 2)
+            .attr(
+                'height',
+                (_, i) =>
+                    RECT_HEIGHT +
+                    i * 2 * STROKE_WIDTH_CONSTANT +
+                    STROKE_WIDTH_CONSTANT
+            )
+            .attr(
+                'width',
+                (constraint, i) =>
+                    constraint.d3Node.width +
+                    i * 2 * STROKE_WIDTH_CONSTANT +
+                    STROKE_WIDTH_CONSTANT
+            )
+            .attr(
+                'transform',
+                (json, i) => `
+    translate(${
+                    json.d3Node.x -
+                    i * STROKE_WIDTH_CONSTANT -
+                    STROKE_WIDTH_CONSTANT / 2
+                },
+        ${
+                    json.d3Node.y -
+                    i * STROKE_WIDTH_CONSTANT -
+                    STROKE_WIDTH_CONSTANT / 2
+                })`
+            );
+
+        // Remove constraints highlighted nodes
+        highlightedConstraintNodes.exit().remove();
+        highlightedConstraintNodeRects.exit().remove();
+    }
+
+    function updateLinks(d3Data, visibleD3Nodes) {
+        const links = visibleD3Nodes
+            .slice(1)
+            .filter((d3Node) => d3Node.data instanceof FeatureNode);
+        const link = d3Data.container.linksContainer
+            .selectAll('path.link')
+            .data(links, (d3Node) => d3Node.id);
+
+        const linkEnter = link.enter().insert('path', 'g').classed('link', true);
+
+        const linkUpdate = linkEnter.merge(link);
+        linkUpdate
+            .classed('is-searched-link', (d3Node) => d3Node.data.isSearched)
+            .attr('d', (d3Node) => {
+                if (d3Data.direction === 'v') {
+                    return createLinkVertically(d3Node.parent, d3Node);
+                } else {
+                    return createLinkHorizontally(
+                        d3Node.parent,
+                        d3Node
+                    );
+                }
+            });
+
+        link.exit().remove();
+    }
+
+    {#function updateColoring(d3Data) {#}
+    {#    const allNodes = d3Data.root.data.descendants();#}
+    {#    colorNodes(allNodes, d3Data.coloringIndex);#}
+    {# } #}
+
+    function updateSegments(d3Data, visibleD3Nodes) {
+        const segment = d3Data.container.segmentsContainer
+            .selectAll('path.segment')
+            .data(
+                visibleD3Nodes.filter(
+                    (d3Node) =>
+                        d3Node.data instanceof FeatureNode &&
+                        (d3Node.data.isAlt() || d3Node.data.isOr())
+                ),
+                (d3Node) => d3Node.id || (d3Node.id = ++d3Data.nodeIdCounter)
+            );
+
+        const segmentEnter = segment
+            .enter()
+            .append('path')
+            .classed('segment', true);
+
+        // Segment update.service.js
+        segmentEnter
+            .merge(segment)
+            .classed('alt-group', (d3Node) => d3Node.data.isAlt())
+            .classed('or-group', (d3Node) => d3Node.data.isOr())
+            .attr('d', (d3Node) => {
+                if (d3Data.direction === 'h') {
+                    return createGroupSegmentHorizontally(
+                        d3Node,
+                        GROUP_SEGMENT_RADIUS
+                    );
+                } else {
+                    return createGroupSegmentVertically(
+                        d3Node,
+                        GROUP_SEGMENT_RADIUS
+                    );
+                }
+            })
+            .attr('transform', (d3Node) => {
+                let dx = d3Node.x;
+                let dy = d3Node.y;
+                if (d3Data.direction === 'h') {
+                    dx += d3Node.width;
+                } else {
+                    dy += RECT_HEIGHT;
+                }
+                return `
+    translate(${dx}, ${dy})`;
+            });
+
+        segment.exit().remove();
+    }
+
+    function updateSvg(d3Data) {
+        /*const start = performance.now();*/
+
+        // Calculate rect widths of all d3Nodes once for better performance instead of repeatedly during update.
+        d3Data.root.descendants().forEach((d3Node) => {
+            d3Node.width = calcRectWidth(d3Data, d3Node);
+
+            if (d3Node.data instanceof FeatureNode) {
+                const level = d3Node.data.level();
+                if (d3Data.maxHorizontallyLevelWidth.length <= level) {
+                    d3Data.maxHorizontallyLevelWidth.push(0);
+                }
+
+                if (d3Data.maxHorizontallyLevelWidth[level] < d3Node.width) {
+                    d3Data.maxHorizontallyLevelWidth[level] = d3Node.width;
+                }
+            }
+        });
+
+        // Flexlayout belongs to a d3-plugin that calculates the width between all nodes dynamically.
+        const visibleD3Nodes = d3Data.flexlayout(d3Data.root).descendants();
+
+        // Swap x and y to draw from left to right instead of drawing from top to bottom
+        if (d3Data.direction === 'h') {
+            visibleD3Nodes.forEach((d3Node) => {
+                const x = d3Node.x;
+                d3Node.x = d3Node.y;
+                d3Node.y = x;
+            });
+        }
+
+        {#updateColoring(d3Data);#}
+        {#updateHighlightedConstraints(d3Data, visibleD3Nodes);#}
+        updateSegments(d3Data, visibleD3Nodes);
+        updateFeatureNodes(d3Data, visibleD3Nodes);
+        updatePseudoNodes(d3Data, visibleD3Nodes);
+        updateLinks(d3Data, visibleD3Nodes);
+    }
+
+    // Calculates rect-width dependent on font-size dynamically.
+    function calcRectWidth(d3Data, d3Node) {
+        if (d3Node.data instanceof FeatureNode) {
+            return (
+                (d3Data.isShortenedName
+                    ? d3Node.data.displayName.length
+                    : d3Node.data.name.length) *
+                (FEATURE_FONT_SIZE *
+                    MONOSPACE_HEIGHT_WIDTH_FACTOR) +
+                RECT_MARGIN.left +
+                RECT_MARGIN.right
+            );
+        } else {
+            return PSEUDO_NODE_SIZE * 2;
+        }
+    }
+
+    // --
+
+    // -- createPaths
+
+    // Helper functions for drawing alternative-group and and-group paths
+    const MOVE = 'M', LINE = 'L', ARC = 'A', CLOSE = 'Z';
+
+    function polarToCartesian(point, radius, degrees) {
+        const rad = degrees * Math.PI / 180.0;
+        return {
+            x: point.x + (radius * Math.cos(rad)),
+            y: point.y + (radius * Math.sin(rad)),
+        };
+    }
+
+    function cartesianToAngle(centerPoint, point) {
+        return Math.atan2(point.y - centerPoint.y, point.x - centerPoint.x) * 180.0 / Math.PI;
+    }
+
+    function translateToPathD(...data) {
+        return data.join(' ');
+    }
+
+    function createPathDOfSegment(centerPoint, radius, startAngle, endAngle) {
+        const start = polarToCartesian(centerPoint, radius, startAngle);
+        const end = polarToCartesian(centerPoint, radius, endAngle);
+
+        const a = translateToPathD(MOVE, toPath(end), ARC, radius, radius, 0, 0, 1, toPath(start));
+        const b = translateToPathD(LINE, toPath(centerPoint), CLOSE);
+
+        return translateToPathD(a, b, CLOSE);
+    }
+
+    function toPath({x, y}) {
+        return `${x},${y}`;
+    }
+
+    function createGroupSegmentHorizontally(d3Node, radius) {
+        const rectAnchor = {x: d3Node.x + d3Node.width, y: d3Node.y};
+        return createGroupSegment(d3Node, radius, rectAnchor);
+    }
+
+    function createGroupSegmentVertically(d3Node, radius) {
+        const rectAnchor = {x: d3Node.x, y: d3Node.y + RECT_HEIGHT};
+        return createGroupSegment(d3Node, radius, rectAnchor);
+    }
+
+    function createGroupSegment(d3Node, radius, rectAnchor) {
+        if (d3Node.children && d3Node.children.length > 1) {
+
+            const firstChild = d3Node.children[0].isPseudoElement ? d3Node.children[1] : d3Node.children[0];
+            const lastChild = d3Node.children[d3Node.children.length - 1].isPseudoElement ? d3Node.children[d3Node.children.length - 2] : d3Node.children[d3Node.children.length - 1];
+
+            let startAngle = cartesianToAngle(rectAnchor, firstChild);
+            let endAngle = cartesianToAngle(rectAnchor, lastChild);
+            if (startAngle < endAngle) {
+                const tmp = startAngle;
+                startAngle = endAngle;
+                endAngle = tmp;
+            }
+            return createPathDOfSegment({x: 0, y: 0}, radius, startAngle, endAngle);
+        }
+
+        return null;
+    }
+
+    function createLinkVertically(src, dest) {
+        const src_y = src.y + RECT_HEIGHT;
+        return `M ${src.x} ${src_y} L ${dest.x} ${dest.y}`;
+    }
+
+    function createLinkHorizontally(src, dest) {
+        return `M ${src.x + src.width} ${src.y} L ${dest.x} ${dest.y}`;
+    }
+
+    function calculateTriangle() {
+        const base = 35;
+
+        const h = Math.sin(60) * base;
+
+        const [ax, ay] = [-(base / 2), base / 2];
+        const [bx, by] = [base / 2, base / 2];
+        const [cx, cy] = [0, h];
+
+        return [`${ax},${ay}`, `${bx},${by}`, `${cx},${cy}`];
+    }
+
+    // --
+
+    // -- const --
+    const RECT_HEIGHT = 35;
+    const NODE_COLOR = "rgb(204, 204, 255)";
+    const NODE_EDITED_COLOR = "rgb(197,196,120)";
+    const NODE_ABSTRACT_COLOR = "#ebebff";
+
+    const FEATURE_FONT_SIZE = 16;
+    const MONOSPACE_HEIGHT_WIDTH_FACTOR = 0.6;
+    const RECT_MARGIN = {right: 8, left: 8};
+    const PSEUDO_NODE_SIZE = 20;
+    const GROUP_SEGMENT_RADIUS = 25;
+    const CHILDREN_COUNT_FONT_SIZE = 7;
+
+    const TRIANGLE_HORIZONTAL_ROTATION = 270;
+    const TRIANGLE_BORDER_OFFSET = 11;
+
+    const MANDATORY_CIRCLE_RADIUS = 6;
+
+    const DISPLAY_NAME_LENGTH = 8;
+    const DISPLAY_NAME_RAW = 5;
+    const POINTS = '...';
+    // ---
+
+    // -- FeatureNode --
+    class FeatureNode {
+        constructor(parent, name, groupType, mandatory, abstract) {
+            this.parent = parent;
+            this.name = name;
+            this.setDisplayName(name);
+            this.children = [];
+            this.groupType = groupType;
+            this.isRoot = parent === null;
+            this.isMandatory = mandatory;
+            this.isAbstract = abstract;
+            this.colorValue = NODE_COLOR;
+            this.constraints = [];
+            this.isCollapsed = false;
+            this.isHidden = false;
+            this.d3Node = null;
+            this.markedAsEdited = false;
+        }
+
+        setDisplayName(newName) {
+            ///Sets the Displayname of the Featurenode
+            if (newName.length <= DISPLAY_NAME_LENGTH) {
+                this.displayName = newName;
+            } else {
+                this.displayName = newName.slice(0, DISPLAY_NAME_RAW) + POINTS;
+            }
+
+        }
+
+        color() {
+            if (this.markedAsEdited) {
+                return NODE_EDITED_COLOR;
+            } else if (this.isAbstract) {
+                return NODE_ABSTRACT_COLOR;
+            } else {
+                return this.colorValue;
+            }
+        }
+
+        level() {
+            if (this.isRoot) {
+                return 0;
+            } else {
+                return this.parent.level() + 1;
+            }
+        }
+
+        childrenCount() {
+            if (this.isLeaf()) {
+                return 0;
+            } else {
+                return this.children.length;
+            }
+        }
+
+        totalSubnodesCount() {
+            if (this.isLeaf()) {
+                return 0;
+            } else {
+                let totalSubnodesCount = this.children.length;
+                this.children.forEach(node => {
+                    totalSubnodesCount += node.totalSubnodesCount();
+                });
+                return totalSubnodesCount;
+            }
+        }
+
+        isAnd() {
+            return this.groupType === 'and';
+        }
+
+        isOr() {
+            return this.groupType === 'or';
+        }
+
+        isAlt() {
+            return this.groupType === 'alt';
+        }
+
+        isLeaf() {
+            return this.children.length === 0;
+        }
+
+        uncollapse(toRoot = true) {
+            if (this.isCollapsed && !this.isLeaf()) {
+                this.d3Node.children = this.d3Node.collapsedChildren;
+                this.d3Node.collapsedChildren = null;
+            }
+
+            if (!this.isRoot && toRoot) {
+                this.parent.uncollapse();
+            }
+
+            this.isCollapsed = false;
+        }
+
+        collapse() {
+            if (!this.isCollapsed && !this.isLeaf()) {
+                this.d3Node.collapsedChildren = this.d3Node.children;
+                this.d3Node.children = null;
+            }
+
+            this.isCollapsed = true;
+        }
+
+        toggleCollapse() {
+            if (this.isCollapsed) {
+                this.uncollapse();
+            } else {
+                this.collapse();
+            }
+        }
+
+        getAllNodesToRoot() {
+            if (this.isRoot) {
+                return [this];
+            } else {
+                return [this, ...this.parent.getAllNodesToRoot()];
+            }
+        }
+
+        getLeftSibling() {
+            const index = this.parent.children.indexOf(this);
+            if (index === 0) {
+                return null;
+            }
+            return this.parent.children[index - 1];
+        }
+
+        getRightSibling() {
+            const index = this.parent.children.indexOf(this);
+            if (index === this.parent.children.length - 1) {
+                return null;
+            }
+            return this.parent.children[index + 1];
+        }
+
+        getLeftSiblings() {
+            if (this.isRoot) {
+                return [];
+            }
+            const index = this.parent.children.indexOf(this);
+            return this.parent.children.slice(0, index);
+        }
+
+        getRightSiblings() {
+            if (this.isRoot) {
+                return [];
+            }
+            const index = this.parent.children.indexOf(this);
+            return this.parent.children.slice(index + 1);
+        }
+
+        toggleHideLeftSiblings() {
+            if (this.getLeftSibling().isHidden) {
+                this.unhideLeftSiblings();
+            } else {
+                this.hideLeftSiblings();
+            }
+        }
+
+        toggleHideRightSiblings() {
+            if (this.getRightSibling().isHidden) {
+                this.unhideRightSiblings();
+            } else {
+                this.hideRightSiblings();
+            }
+        }
+
+        hideLeftSiblings() {
+            if (this.isRoot) {
+                return;
+            }
+
+            const leftSiblings = this.getLeftSiblings();
+            if (!leftSiblings.length) return;
+            leftSiblings.forEach(node => node.isHidden = true);
+
+            const leftD3Siblings = leftSiblings.map(node => node.d3Node);
+            const pseudoNode = new PseudoNode(this.parent, leftD3Siblings);
+            const d3PseudoNode = d3.hierarchy(pseudoNode);
+            pseudoNode.d3Node = d3PseudoNode;
+
+            const index = this.parent.d3Node.children.indexOf(this.d3Node);
+            const rightD3Siblings = this.parent.d3Node.children.slice(index + 1);
+            this.parent.d3Node.children = [d3PseudoNode, this.d3Node, ...rightD3Siblings];
+        }
+
+        hideRightSiblings() {
+            if (this.isRoot) {
+                return;
+            }
+
+            const rightSiblings = this.getRightSiblings();
+            if (!rightSiblings.length) return;
+            rightSiblings.forEach(node => node.isHidden = true);
+
+            const rightD3Siblings = rightSiblings.map(node => node.d3Node);
+            const pseudoNode = new PseudoNode(this.parent, rightD3Siblings);
+            const d3PseudoNode = d3.hierarchy(pseudoNode);
+            pseudoNode.d3Node = d3PseudoNode;
+
+            const index = this.parent.d3Node.children.indexOf(this.d3Node);
+            const leftD3Siblings = this.parent.d3Node.children.slice(0, index);
+            this.parent.d3Node.children = [...leftD3Siblings, this.d3Node, d3PseudoNode];
+        }
+
+        unhideLeftSiblings() {
+            if (this.isRoot) {
+                return;
+            }
+
+            const leftSiblings = this.getLeftSiblings();
+            leftSiblings.forEach(node => node.isHidden = false);
+
+            const index = this.parent.d3Node.children.indexOf(this.d3Node);
+            const rightD3Siblings = this.parent.d3Node.children.slice(index + 1);
+            const leftD3Siblings = leftSiblings.map(node => node.d3Node);
+            this.parent.d3Node.children = [...leftD3Siblings, this.d3Node, ...rightD3Siblings];
+        }
+
+        unhideRightSiblings() {
+            if (this.isRoot) {
+                return;
+            }
+
+            const rightSiblings = this.getRightSiblings();
+            rightSiblings.forEach(node => node.isHidden = false);
+
+            const index = this.parent.d3Node.children.indexOf(this.d3Node);
+            const leftD3Siblings = this.parent.d3Node.children.slice(index + 1);
+            const rightD3Siblings = rightSiblings.map(node => node.d3Node);
+            this.parent.d3Node.children = [...leftD3Siblings, this.d3Node, ...rightD3Siblings];
+        }
+
+        hide() {
+            if (this.isRoot) {
+                return;
+            }
+
+            const index = this.parent.d3Node.children.indexOf(this.d3Node);
+
+            // Check if the d3Node left is also a pseudo-node. If true merge with current one.
+            let leftHiddenD3Nodes = [];
+            let leftIndex = index;
+            if (index !== 0) {
+                const leftD3Node = this.parent.d3Node.children[index - 1];
+                if (leftD3Node.data instanceof PseudoNode) {
+                    leftHiddenD3Nodes = leftD3Node.data.hiddenD3Nodes;
+                    leftIndex--;
+                }
+            }
+
+            // Check if the d3Node right is also a pseudo-node. If true merge with current one.
+            let rightHiddenD3Nodes = [];
+            let rightIndex = index;
+            if (index !== this.parent.d3Node.children.length - 1) {
+                const rightD3Node = this.parent.d3Node.children[index + 1];
+                if (rightD3Node.data instanceof PseudoNode) {
+                    rightHiddenD3Nodes = rightD3Node.data.hiddenD3Nodes;
+                    rightIndex++;
+                }
+            }
+
+            const hiddenD3Nodes = [...leftHiddenD3Nodes, this.d3Node, ...rightHiddenD3Nodes];
+
+            const pseudoNode = new PseudoNode(this.parent, hiddenD3Nodes);
+            const d3PseudoNode = d3.hierarchy(pseudoNode);
+            pseudoNode.d3Node = d3PseudoNode;
+
+            const leftD3Siblings = this.parent.d3Node.children.slice(0, leftIndex);
+            const rightD3Siblings = this.parent.d3Node.children.slice(rightIndex + 1);
+
+            this.parent.d3Node.children = [...leftD3Siblings, d3PseudoNode, ...rightD3Siblings];
+            this.isHidden = true;
+        }
+
+        hideAllNodesOnThisLevel() {
+            if (this.getLeftSiblings().length) {
+                this.hideLeftSiblings();
+            }
+            if (this.getRightSiblings().length) {
+                this.hideRightSiblings();
+            }
+        }
+
+        unhideChildren() {
+            if (this.isLeaf()) {
+                return;
+            }
+
+            this.children.forEach(node => node.isHidden = false);
+            this.d3Node.children = this.children.map(node => node.d3Node);
+        }
+
+        insertChildAtIndex(child, index) {
+            // Update d3-parent
+            child.d3Node.parent = this.d3Node;
+            child.parent = this;
+
+            // Update d3-children
+            const d3Children = this.getD3Children();
+            const leftD3Nodes = d3Children.slice(0, index);
+            const rightD3Nodes = d3Children.slice(index);
+            this.d3Node.children = [...leftD3Nodes, child.d3Node, ...rightD3Nodes];
+
+            // Update feature-node-children
+            const leftNodes = this.children.slice(0, index);
+            const rightNodes = this.children.slice(index);
+            this.children = [...leftNodes, child, ...rightNodes];
+        }
+
+        removeChild(child) {
+            this.children = this.children.filter(node => node !== child);
+            this.d3Node.children = this.getD3Children().filter(d3Node => d3Node.data !== child);
+        }
+
+        getD3Children() {
+            return this.children.map(node => node.d3Node);
+        }
+
+        each(func) {
+            func(this);
+            if (!this.isLeaf()) {
+                this.children.forEach(node => node.each(func));
+            }
+        }
+
+        descendants() {
+            if (this.isLeaf()) {
+                return [this];
+            } else {
+                return [this, ...this.children.map(node => node.descendants()).flat()];
+            }
+        }
+
+        markAsEdited() {
+            this.markedAsEdited = true;
+        }
+
+        unmarkAsEdited() {
+            this.markedAsEdited = false;
+        }
+
+        getHighlightedConstraints() {
+            return this.constraints.filter((constraint) => constraint.isHighlighted);
+        }
+
+        highlightConstraints() {
+            this.constraints.forEach((constraint) => constraint.isHighlighted = true);
+        }
+    }
+
+    function createFeatureNode(parent, name, groupType, mandatory, abstract) {
+        const node = new FeatureNode(parent, name, groupType, mandatory, abstract);
+        node.d3Node = d3.hierarchy(node);
+        return node;
+    }
+
+    // ---
+
+    // -- PseudoNode --
+    class PseudoNode {
+        constructor(parent, hiddenD3Nodes) {
+            this.hiddenD3Nodes = hiddenD3Nodes;
+            this.parent = parent;
+            this.d3Node = null;
+        }
+
+        unhideHiddenNodes() {
+            // Unhide every node that is in this pseudo-node.
+            this.hiddenD3Nodes.forEach(d3Node => d3Node.data.isHidden = false);
+
+            // Move every node back to children of parent node.
+            const parentD3Children = this.parent.d3Node.children;
+            const index = parentD3Children.indexOf(this.d3Node);
+            const leftD3Siblings = parentD3Children.slice(0, index);
+            const rightD3Siblings = parentD3Children.slice(index + 1);
+            this.parent.d3Node.children = [...leftD3Siblings, ...this.hiddenD3Nodes, ...rightD3Siblings];
+        }
+    }
+
+    // ---
+
+    function initD3Data() {
+        return {
+            root: undefined,
+            flexLayout: undefined,
+            zoom: undefined,
+            nodeIdCounter: 0,
+            isShortenedName: false,
+            spaceBetweenParentChild: 75,
+            spaceBetweenSiblings: 20,
+            d3ParentOfAddNode: undefined,
+            d3AddNodeIndex: 0,
+            coloringIndex: -1,
+            semanticEditing: false,
+            quickEdit: false,
+            direction: 'v', // h = horizontally, v = vertically
+            maxHorizontallyLevelWidth: [],
+            featureModelTree: undefined,
+            container: {
+                highlightedConstraintsContainer: undefined,
+                linksContainer: undefined,
+                segmentsContainer: undefined,
+                featureNodesContainer: undefined,
+                dragContainer: undefined,
+            },
+        }
+    }
+
+    function initData() {
+        return {
+            featureMap: [],
+            constraints: [],
+            properties: [],
+            calculations: undefined,
+            comments: [],
+            featureOrder: undefined,
+            rootNode: undefined,
+        };
+    }
+
+    {# TODO: import JSON and get root node #}
+
+    function xmlToJson(currentModel, data) {
+        let m = currentModel.split('\n').splice(1).join('\n');
+
+        const parser = new DOMParser();
+        const xmlDocument = parser.parseFromString(m, 'text/xml');
+
+        const struct = xmlDocument.querySelector('struct');
+        const constraintsContainer = xmlDocument.querySelector('constraints');
+        const propertiesSection = xmlDocument.querySelector('properties');
+        const calculationsSection = xmlDocument.querySelector('calculations');
+        const commentsSection = xmlDocument.querySelector('comments');
+        const featureOrderSection = xmlDocument.querySelector('featureOrder');
+
+        data.rootNode = getChildrenOfFeature(struct, null, data)[0];
+        {#data.constraints = readConstraints(#}
+        {#    [...constraintsContainer.childNodes],#}
+        {#    data#}
+        {#);#}
+        data.properties = getProperties(propertiesSection);
+        data.comments = getComments(commentsSection);
+        data.featureOrder = getFeatureOrder(featureOrderSection);
+    }
+
+    function getChildrenOfFeature(struct, parent, data) {
+        let toReturn = [];
+
+        for (const child of struct.childNodes) {
+            // To remove #text nodes, as they don't have a tagName
+            if (child.tagName) {
+                let toAppend = new FeatureNode(
+                    parent,
+                    child.getAttribute('name'),
+                    child.tagName,
+                    child.getAttribute('mandatory') === 'true',
+                    child.getAttribute('abstract') === 'true'
+                );
+                toAppend.children = getChildrenOfFeature(child, toAppend, data);
+
+                data.featureMap[toAppend.name] = toAppend;
+                toReturn.push(toAppend);
+            }
+        }
+
+        return toReturn;
+    }
+
+    {# TODO: display constraints #}
+
+    function readConstraints(constraints, data) {
+        return null;
+        {#    return constraints#}
+        {#        .filter((rule) => rule.tagName)#}
+        {#        .map((rule) => {#}
+        {#            return [...rule.childNodes]#}
+        {#                .filter((item) => item.tagName)#}
+        {#                .map(#}
+        {#                    (item) => new Constraint(readConstraintItem(item, data))#}
+        {#                )[0];#}
+        {#        });#}
+    }
+
+    function readConstraintItem(item, data) {
+        return null;
+        {#    if (item.tagName === 'var') {#}
+        {#        return new FeatureNodeConstraintItem(#}
+        {#            data.featureMap[item.innerHTML.trim()]#}
+        {#        );#}
+        {#    } else {#}
+        {#        const childItems = [...item.childNodes]#}
+        {#            .filter((childItem) => childItem.tagName)#}
+        {#            .map((childItem) => readConstraintItem(childItem, data));#}
+        {##}
+        {#        switch (item.tagName) {#}
+        {#            case 'disj':#}
+        {#                return new Disjunction(childItems[0], childItems[1]);#}
+        {#            case 'conj':#}
+        {#                return new Conjunction(childItems[0], childItems[1]);#}
+        {#            case 'imp':#}
+        {#                return new Implication(childItems[0], childItems[1]);#}
+        {#            case 'not':#}
+        {#                return new Negation(childItems[0]);#}
+        {#        }#}
+        {#    }#}
+    }
+
+    function getProperties(properties) {
+        if (!properties) return [];
+
+        return [...properties.childNodes]
+            .filter((element) => element.tagName)
+            .map((element) => ({
+                tag: element.tagName,
+                key: element.getAttribute('key'),
+                value: element.getAttribute('value'),
+            }));
+    }
+
+    function getComments(commentsSection) {
+        if (!commentsSection) return [];
+
+        return [...commentsSection.childNodes]
+            .filter((element) => element.tagName)
+            .map((element) => element.innerHTML);
+    }
+
+    function getFeatureOrder(featureOrder) {
+        if (!featureOrder) return null;
+
+        return {
+            userDefined: featureOrder.getAttribute('userDefined'),
+        };
+    }
+
+    let d3Data = initD3Data();
+    let data = initData();
+    xmlToJson(xml, data);
+    const rootNode = data.rootNode;
+    init_initialize(d3Data, rootNode);
+    reset(d3Data);
+
+</script>
+<style>
+    .ghost-circle {
+        fill: red;
+        fill-opacity: 0.2;
+    }
+
+    .ghost-circle-highlighted {
+        fill-opacity: 0.8;
+    }
+
+    #svg-container {
+        width: 100%;
+        height: calc(100vh - 64px);
+    }
+
+    .node {
+        cursor: pointer;
+        vertical-align: middle;
+    }
+
+    .is-searched-feature {
+        fill: lightcoral;
+    }
+
+    .node rect {
+        transition: all 0.75s;
+        stroke: #888;
+        stroke-width: 1px;
+    }
+
+    .node text {
+        /* fill: black; */
+        font-family: monospace;
+        text-anchor: middle;
+        user-select: none;
+    }
+
+    .and-group-circle {
+        stroke: #888;
+        stroke-width: 1.5px;
+        opacity: 0;
+    }
+
+    .optional-and-group-circle {
+        fill: white;
+        opacity: 1;
+    }
+
+    .mandatory-and-group-circle {
+        fill: rgb(136, 136, 136);
+        opacity: 1;
+    }
+
+    .alt-group {
+        fill: white;
+        stroke: #888;
+        stroke-width: 1.5px;
+    }
+
+    .or-group {
+        fill: #888;
+        stroke: #888;
+        stroke-width: 1.5px;
+    }
+
+    .link {
+        fill: none;
+        stroke: #888;
+        stroke-width: 1.5px;
+    }
+
+    .is-searched-link {
+        fill: none;
+        stroke: lightcoral;
+        stroke-width: 1.5px;
+    }
+
+    .children-count > circle {
+        fill: white;
+        stroke: #888;
+        stroke-width: 1.5px;
+    }
+
+    .pseudo-node {
+        cursor: pointer;
+        vertical-align: middle;
+    }
+
+    .pseudo-node circle {
+        fill: white;
+        stroke: #888;
+        stroke-width: 1.5px;
+    }
+
+    .feature-model-constraints {
+        position: absolute;
+        background-color: white;
+        bottom: 0;
+        width: 100%;
+        box-shadow: 0 10px 10px #888, 0px -10px 10px #888;
+        padding: 2rem;
+        min-height: 10%;
+        max-height: 20%;
+        overflow: scroll;
+    }
+
+    polygon {
+        stroke: #888;
+    }
+
+    .children-count-text {
+        fill: black !important;
+    }
+
+    .blackText {
+        fill: black !important;
+    }
+
+    .whiteText {
+        fill: white !important;
+    }
+</style>
+</body>
+</html>

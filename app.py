@@ -4,7 +4,7 @@ import re
 from os import path, urandom
 
 from pyvirtualdisplay import Display
-from flask import Flask, flash, request, Response, jsonify, render_template
+from flask import Flask, flash, request, Response, render_template
 from selenium.webdriver.common.by import By
 
 from werkzeug.utils import secure_filename
@@ -22,36 +22,64 @@ app.secret_key = urandom(32)
 
 # -----------------------------------------------------------------------------
 
+
 @app.route('/ping', methods=["GET", "POST"])
 def index():
     return Response("Running...", status=200)
 
 
-@app.route('/', methods=["POST"])
+@app.route('/', methods=["GET", "POST"])
+def render():
+    if request.method == 'POST':
+        if "file" not in request.files:
+            flash("no file supplied")
+            return Response("no file supplied", status=422)
+
+        file = request.files["file"]
+
+        if not file or file.filename == "":
+            return Response("no file supplied", status=422)
+
+        filename = secure_filename(file.filename)
+        filepath = path.join(UPLOAD_FOLDER, filename)
+        file.save(filepath)
+
+        with open(filepath, "r") as file:
+            raw = file.read()
+
+        return render_template("fmviewer.html", xml=raw)
+    else:
+        return render_template("index.html")
+
+
+@app.route('/download', methods=["POST"])
 def upload():
-    if "file" not in request.files:
-        flash("no file supplied")
-        return Response("no file supplied", status=422)
+    if request.method == 'POST':
+        if "file" not in request.files:
+            flash("no file supplied")
+            return Response("no file supplied", status=422)
 
-    file = request.files["file"]
+        file = request.files["file"]
 
-    if not file or file.filename == "":
-        return Response("no file supplied", status=422)
+        if not file or file.filename == "":
+            return Response("no file supplied", status=422)
 
-    filename = secure_filename(file.filename)
-    filepath = path.join(UPLOAD_FOLDER, filename)
-    file.save(filepath)
+        filename = secure_filename(file.filename)
+        filepath = path.join(UPLOAD_FOLDER, filename)
+        file.save(filepath)
 
-    with open(filepath, "r") as file:
-        raw = file.read()
+        with open(filepath, "r") as file:
+            raw = file.read()
 
-    with tempfile.NamedTemporaryFile(suffix=".html") as ntf:
-        with open(ntf.name, "w+") as file:
-            file.write(render_template("index.html", xml=raw))
+        with tempfile.NamedTemporaryFile(suffix=".html") as ntf:
+            with open(ntf.name, "w+") as file:
+                file.write(render_template("fmviewer.html", xml=raw))
 
-        content = download_svg("file://" + ntf.name)
+            content = download_svg("file://" + ntf.name)
 
-    return Response(content, status=200)
+        return Response(content, status=200)
+    else:
+        return render_template("index.html")
 
 
 # TODO: on get request -> Upload button
