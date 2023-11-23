@@ -107,12 +107,6 @@ def download_svg(source_file):
 
     display = Display(visible=0, size=(800, 600))
     display.start()
-    #
-    # firefox_profile = webdriver.FirefoxProfile()
-    # firefox_profile.set_preference('browser.download.folderList', 2)
-    # firefox_profile.set_preference('browser.download.manager.showWhenStarting', False)
-    # firefox_profile.set_preference('browser.download.dir', os.getcwd())
-    # firefox_profile.set_preference('browser.helperApps.neverAsk.saveToDisk', 'text/csv')
 
     options = webdriver.FirefoxOptions()
     options.binary_location = r'/opt/firefox/'
@@ -124,8 +118,6 @@ def download_svg(source_file):
 
     driver.implicitly_wait(10)
     driver.get(source_file)
-
-    app.logger.debug(driver.page_source)
 
     svg = driver.find_element(by=By.TAG_NAME, value="svg").get_attribute("innerHTML")
     svg_outer_html = driver.find_element(by=By.TAG_NAME, value="svg").get_attribute("outerHTML")
