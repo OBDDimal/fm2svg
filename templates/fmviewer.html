@@ -51,8 +51,6 @@
 </script>
 
 <script type="module">
-    const xml = `{{ xml|safe }}`;
-
     // ---------------------------------------------Init-Script---------------------------------------------------------
     function init_initData(d3Data, data) {
         // Create root-feature-node with d3 and the data of the feature-model.
@@ -128,7 +126,7 @@
 
     function reset(d3Data, uncollapsedLevels = 4, maxChildrenCount = 3) {
         // Collapses all nodes after depth 1.
-        {#d3Data.root.data.each(node => node.collapse());#}
+        d3Data.root.data.each(node => node.collapse());
 
         let currentChildren = [d3Data.root.data];
         for (let i = 1; i <= uncollapsedLevels; i++) {
@@ -1359,7 +1357,14 @@
         };
     }
 
-    let d3Data = initD3Data();
+    const xml = `{{ xml|safe }}`;
+
+    {% if json_data != ""%}
+        let d3Data = {{ json_data|safe }};
+    {% else %}
+        let d3Data = initD3Data();
+    {% endif %}
+
     let data = initData();
     xmlToJson(xml, data);
     const rootNode = data.rootNode;

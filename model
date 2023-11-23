@@ -1,0 +1,25 @@
+{
+  root: undefined,
+  flexLayout: undefined,
+  zoom: undefined,
+  nodeIdCounter: 0,
+  isShortenedName: false,
+  spaceBetweenParentChild: 75,
+  spaceBetweenSiblings: 22,
+  d3ParentOfAddNode: undefined,
+  d3AddNodeIndex: 0,
+  coloringIndex: -1,
+  semanticEditing: false,
+  quickEdit: false,
+  direction: 'h',
+  // h = horizontally, v = vertically
+  maxHorizontallyLevelWidth: [],
+  featureModelTree: undefined,
+  container: {
+    highlightedConstraintsContainer: undefined,
+    linksContainer: undefined,
+    segmentsContainer: undefined,
+    featureNodesContainer: undefined,
+    dragContainer: undefined
+  },
+}

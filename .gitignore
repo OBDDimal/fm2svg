@@ -401,3 +401,5 @@ pyrightconfig.json
 .idea
 
 geckodriver.log
+
+model_big.xml

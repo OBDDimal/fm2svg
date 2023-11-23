@@ -1,10 +1,11 @@
+import logging
 import os
 import tempfile
 import re
 from os import path, urandom
 
 from pyvirtualdisplay import Display
-from flask import Flask, flash, request, Response, render_template
+from flask import Flask, flash, request, Response, render_template, json
 from selenium.webdriver.common.by import By
 
 from werkzeug.utils import secure_filename
@@ -55,25 +56,42 @@ def render():
 @app.route('/download', methods=["POST"])
 def upload():
     if request.method == 'POST':
-        if "file" not in request.files:
+        if "xml" not in request.files:
             flash("no file supplied")
             return Response("no file supplied", status=422)
 
-        file = request.files["file"]
+        # handle xml
+        xml = request.files["xml"]
 
-        if not file or file.filename == "":
+        if not xml or xml.filename == "":
             return Response("no file supplied", status=422)
 
-        filename = secure_filename(file.filename)
+        filename = secure_filename(xml.filename)
         filepath = path.join(UPLOAD_FOLDER, filename)
-        file.save(filepath)
+        xml.save(filepath)
 
         with open(filepath, "r") as file:
-            raw = file.read()
+            raw_xml = file.read()
+
+        # handle json
+        if "json" in request.files:
+            json = request.files["json"]
+
+            if not json or json.filename == "":
+                raw_json = ""
+            else:
+                filename = secure_filename(json.filename)
+                filepath = path.join(UPLOAD_FOLDER, filename)
+                json.save(filepath)
+
+                with open(filepath, "r") as file:
+                    raw_json = file.read()
+        else:
+            raw_json = ""
 
         with tempfile.NamedTemporaryFile(suffix=".html") as ntf:
             with open(ntf.name, "w+") as file:
-                file.write(render_template("fmviewer.html", xml=raw))
+                file.write(render_template("fmviewer.html", xml=raw_xml, json_data=raw_json))
 
             content = download_svg("file://" + ntf.name)
 
@@ -106,6 +124,8 @@ def download_svg(source_file):
 
     driver.implicitly_wait(10)
     driver.get(source_file)
+
+    app.logger.debug(driver.page_source)
 
     svg = driver.find_element(by=By.TAG_NAME, value="svg").get_attribute("innerHTML")
     svg_outer_html = driver.find_element(by=By.TAG_NAME, value="svg").get_attribute("outerHTML")
