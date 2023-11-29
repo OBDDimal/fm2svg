@@ -12,44 +12,6 @@
 <base href=".">
 <button class="btn" id="download" onclick="download()"><i class="fa fa-download"></i> Download</button>
 
-<script>
-    function download() {
-        try {
-            var isFileSaverSupported = !!new Blob();
-        } catch (e) {
-            alert("blob not supported");
-        }
-
-        var html = d3.select("svg")
-            .attr("version", 1.1)
-            .attr("xmlns", "http://www.w3.org/2000/svg")
-            .node().parentNode.innerHTML;
-
-        const styleString = document.getElementsByTagName('style')[0].outerHTML;
-
-        var split = html.split(">");
-        split[1] = styleString + split[1];
-        html = split.join('>');
-
-
-        var blob = new Blob([html], {type: "image/svg+xml"});
-        if (window.navigator.msSaveOrOpenBlob) // IE10+
-            window.navigator.msSaveOrOpenBlob(blob, "model.svg");
-        else {
-            var a = document.createElement("a");
-            url = URL.createObjectURL(blob);
-            a.href = url;
-            a.download = "model.svg";
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(function () {
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-            }, 0);
-        }
-    };
-</script>
-
 <script type="module">
     // ---------------------------------------------Init-Script---------------------------------------------------------
     function init_initData(d3Data, data) {
@@ -178,7 +140,8 @@
             .attr(
                 'viewBox',
                 `0 0 ${window.innerWidth} ${window.innerHeight - 64}`,
-            );
+            )
+            ;
 
         zoomFit(d3Data);
     }
@@ -1337,7 +1300,7 @@
     const xml = `{{ xml|safe }}`;
 
     {% if json_data != ""%}
-        let d3Data = {{ json_data|safe }};
+        {{ json_data|safe }}
     {% else %}
         let d3Data = initD3Data();
     {% endif %}
@@ -1351,6 +1314,7 @@
         const FEATURE_FONT_SIZE = d3Data.featureFontSize;
         const DISPLAY_NAME_LENGTH = d3Data.displayNameLength;
         const DISPLAY_NAME_RAW = d3Data.displayNameRaw;
+        const RECT_MARGIN = d3Data.rectMargin;
     {% else %}
         const RECT_HEIGHT = 35;
         const NODE_COLOR = "rgb(204, 204, 255)";
@@ -1358,12 +1322,13 @@
         const FEATURE_FONT_SIZE = 16;
         const DISPLAY_NAME_LENGTH = 8;
         const DISPLAY_NAME_RAW = 5;
+        const RECT_MARGIN = {right: 8, left: 8};
+
     {% endif %}
 
     const POINTS = '...';
     const NODE_EDITED_COLOR = "rgb(197,196,120)";
     const MONOSPACE_HEIGHT_WIDTH_FACTOR = 0.6;
-    const RECT_MARGIN = {right: 8, left: 8};
     const PSEUDO_NODE_SIZE = 20;
     const GROUP_SEGMENT_RADIUS = 25;
     const CHILDREN_COUNT_FONT_SIZE = 7;

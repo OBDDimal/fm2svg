@@ -23,9 +23,11 @@
     dragContainer: undefined
   },
   rectHeight: 35,
-  nodeColor: "rgb(204,204,255)",
+  nodeColor: "rgb(10,10,10)",
   nodeAbstractColor: "#ebebff",
   featureFontSize: 16,
   displayNameLength: 20,
   displayNameRaw: 8,
+  rectMargin: {right: 8, left: 8},
+  background: "rgb(10,10,10)",
 }

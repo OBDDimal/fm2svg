@@ -45,7 +45,9 @@ def render():
 
         raw_json = handle_json(request)
 
-        return render_template("fmviewer.html", xml=raw_xml, json=raw_json)
+        logging.warning(render_template("fmviewer.html", xml=raw_xml, json_data=raw_json))
+
+        return render_template("fmviewer.html", xml=raw_xml, json_data=raw_json)
     else:
         return render_template("index.html")
 
@@ -65,14 +67,14 @@ def upload():
             with open(ntf.name, "w+") as file:
                 file.write(render_template("fmviewer.html", xml=raw_xml, json_data=raw_json))
 
-            content = download_svg("file://" + ntf.name)
+            content = download_svg("file://" + ntf.name, raw_json)
 
         return Response(content, status=200)
     else:
         return render_template("index.html")
 
 
-def download_svg(source_file):
+def download_svg(source_file, json_data):
     # ---
 
     display = Display(visible=0, size=(800, 600))
@@ -89,17 +91,26 @@ def download_svg(source_file):
     driver.implicitly_wait(10)
     driver.get(source_file)
 
-    logging.warning(driver.page_source)
+    # logging.warning(driver.page_source)
 
     svg = driver.find_element(by=By.TAG_NAME, value="svg").get_attribute("innerHTML")
     svg_outer_html = driver.find_element(by=By.TAG_NAME, value="svg").get_attribute("outerHTML")
     viewbox = re.search('viewBox="[0-9]* [0-9]* [0-9]* [0-9]*"', svg_outer_html).group(0)
+
+    if json_data != "":
+        logging.warning(json_data)
+        logging.warning(re.search('background:', json_data).group(0))
+        regex = re.search('background:.*"(.*)",', json_data).group(1)
+        background = ' style="background-color:' + regex + ';"'
+    else:
+        background = ""
+
     style = driver.find_element(by=By.TAG_NAME, value="style").get_attribute("outerHTML")
 
     driver.quit()
     display.stop()
 
-    final_content = ("<svg preserveAspectRatio=\"xMidYMid meet\" " + viewbox + " version=\"1.1\" "
+    final_content = ("<svg preserveAspectRatio=\"xMidYMid meet\" " + viewbox + background + " version=\"1.1\" "
                      + "xmlns=\"http://www.w3.org/2000/svg\">" + style + svg + "</svg>")
 
     return final_content
@@ -124,8 +135,8 @@ def handle_xml(request):
 
 
 def handle_json(request):
-    if "json" in request.files:
-        json = request.files["json"]
+    if "json_data" in request.files:
+        json = request.files["json_data"]
 
         if not json or json.filename == "":
             raw_json = ""
@@ -136,6 +147,8 @@ def handle_json(request):
 
             with open(filepath, "r") as file:
                 raw_json = file.read()
+
+            raw_json = "let d3Data = " + raw_json + ";"
     else:
         raw_json = ""
 
