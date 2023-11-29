@@ -796,29 +796,6 @@
 
     // --
 
-    // -- const --
-    const RECT_HEIGHT = 35;
-    const NODE_COLOR = "rgb(204, 204, 255)";
-    const NODE_EDITED_COLOR = "rgb(197,196,120)";
-    const NODE_ABSTRACT_COLOR = "#ebebff";
-
-    const FEATURE_FONT_SIZE = 16;
-    const MONOSPACE_HEIGHT_WIDTH_FACTOR = 0.6;
-    const RECT_MARGIN = {right: 8, left: 8};
-    const PSEUDO_NODE_SIZE = 20;
-    const GROUP_SEGMENT_RADIUS = 25;
-    const CHILDREN_COUNT_FONT_SIZE = 7;
-
-    const TRIANGLE_HORIZONTAL_ROTATION = 270;
-    const TRIANGLE_BORDER_OFFSET = 11;
-
-    const MANDATORY_CIRCLE_RADIUS = 6;
-
-    const DISPLAY_NAME_LENGTH = 8;
-    const DISPLAY_NAME_RAW = 5;
-    const POINTS = '...';
-    // ---
-
     // -- FeatureNode --
     class FeatureNode {
         constructor(parent, name, groupType, mandatory, abstract) {
@@ -1364,6 +1341,39 @@
     {% else %}
         let d3Data = initD3Data();
     {% endif %}
+
+    // -- const --
+
+    {% if json_data != "" %}
+        const RECT_HEIGHT = d3Data.rectHeight;
+        const NODE_COLOR = d3Data.nodeColor;
+        const NODE_ABSTRACT_COLOR = d3Data.nodeAbstractColor;
+        const FEATURE_FONT_SIZE = d3Data.featureFontSize;
+        const DISPLAY_NAME_LENGTH = d3Data.displayNameLength;
+        const DISPLAY_NAME_RAW = d3Data.displayNameRaw;
+    {% else %}
+        const RECT_HEIGHT = 35;
+        const NODE_COLOR = "rgb(204, 204, 255)";
+        const NODE_ABSTRACT_COLOR = "#ebebff";
+        const FEATURE_FONT_SIZE = 16;
+        const DISPLAY_NAME_LENGTH = 8;
+        const DISPLAY_NAME_RAW = 5;
+    {% endif %}
+
+    const POINTS = '...';
+    const NODE_EDITED_COLOR = "rgb(197,196,120)";
+    const MONOSPACE_HEIGHT_WIDTH_FACTOR = 0.6;
+    const RECT_MARGIN = {right: 8, left: 8};
+    const PSEUDO_NODE_SIZE = 20;
+    const GROUP_SEGMENT_RADIUS = 25;
+    const CHILDREN_COUNT_FONT_SIZE = 7;
+
+    const TRIANGLE_HORIZONTAL_ROTATION = 270;
+    const TRIANGLE_BORDER_OFFSET = 11;
+
+    const MANDATORY_CIRCLE_RADIUS = 6;
+    // ---
+
 
     let data = initData();
     xmlToJson(xml, data);

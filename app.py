@@ -1,11 +1,10 @@
 import logging
-import os
 import tempfile
 import re
 from os import path, urandom
 
 from pyvirtualdisplay import Display
-from flask import Flask, flash, request, Response, render_template, json
+from flask import Flask, flash, request, Response, render_template
 from selenium.webdriver.common.by import By
 
 from werkzeug.utils import secure_filename
@@ -24,6 +23,12 @@ app.secret_key = urandom(32)
 # -----------------------------------------------------------------------------
 
 
+# TODO:
+#   - colors (background, abstract etc.)
+#   - clean up
+#   - render page + configuration via js library
+#   - docker compose?
+
 @app.route('/ping', methods=["GET", "POST"])
 def index():
     return Response("Running...", status=200)
@@ -32,23 +37,15 @@ def index():
 @app.route('/', methods=["GET", "POST"])
 def render():
     if request.method == 'POST':
-        if "file" not in request.files:
+        if "xml" not in request.files:
             flash("no file supplied")
             return Response("no file supplied", status=422)
 
-        file = request.files["file"]
+        raw_xml = handle_xml(request)
 
-        if not file or file.filename == "":
-            return Response("no file supplied", status=422)
+        raw_json = handle_json(request)
 
-        filename = secure_filename(file.filename)
-        filepath = path.join(UPLOAD_FOLDER, filename)
-        file.save(filepath)
-
-        with open(filepath, "r") as file:
-            raw = file.read()
-
-        return render_template("fmviewer.html", xml=raw)
+        return render_template("fmviewer.html", xml=raw_xml, json=raw_json)
     else:
         return render_template("index.html")
 
@@ -60,34 +57,9 @@ def upload():
             flash("no file supplied")
             return Response("no file supplied", status=422)
 
-        # handle xml
-        xml = request.files["xml"]
+        raw_xml = handle_xml(request)
 
-        if not xml or xml.filename == "":
-            return Response("no file supplied", status=422)
-
-        filename = secure_filename(xml.filename)
-        filepath = path.join(UPLOAD_FOLDER, filename)
-        xml.save(filepath)
-
-        with open(filepath, "r") as file:
-            raw_xml = file.read()
-
-        # handle json
-        if "json" in request.files:
-            json = request.files["json"]
-
-            if not json or json.filename == "":
-                raw_json = ""
-            else:
-                filename = secure_filename(json.filename)
-                filepath = path.join(UPLOAD_FOLDER, filename)
-                json.save(filepath)
-
-                with open(filepath, "r") as file:
-                    raw_json = file.read()
-        else:
-            raw_json = ""
+        raw_json = handle_json(request)
 
         with tempfile.NamedTemporaryFile(suffix=".html") as ntf:
             with open(ntf.name, "w+") as file:
@@ -99,8 +71,6 @@ def upload():
     else:
         return render_template("index.html")
 
-
-# TODO: on get request -> Upload button
 
 def download_svg(source_file):
     # ---
@@ -119,6 +89,8 @@ def download_svg(source_file):
     driver.implicitly_wait(10)
     driver.get(source_file)
 
+    logging.warning(driver.page_source)
+
     svg = driver.find_element(by=By.TAG_NAME, value="svg").get_attribute("innerHTML")
     svg_outer_html = driver.find_element(by=By.TAG_NAME, value="svg").get_attribute("outerHTML")
     viewbox = re.search('viewBox="[0-9]* [0-9]* [0-9]* [0-9]*"', svg_outer_html).group(0)
@@ -131,6 +103,43 @@ def download_svg(source_file):
                      + "xmlns=\"http://www.w3.org/2000/svg\">" + style + svg + "</svg>")
 
     return final_content
+
+
+# TODO: on get request -> Upload button
+
+def handle_xml(request):
+    xml = request.files["xml"]
+
+    if not xml or xml.filename == "":
+        return Response("no file supplied", status=422)
+
+    filename = secure_filename(xml.filename)
+    filepath = path.join(UPLOAD_FOLDER, filename)
+    xml.save(filepath)
+
+    with open(filepath, "r") as file:
+        raw_xml = file.read()
+
+    return raw_xml
+
+
+def handle_json(request):
+    if "json" in request.files:
+        json = request.files["json"]
+
+        if not json or json.filename == "":
+            raw_json = ""
+        else:
+            filename = secure_filename(json.filename)
+            filepath = path.join(UPLOAD_FOLDER, filename)
+            json.save(filepath)
+
+            with open(filepath, "r") as file:
+                raw_json = file.read()
+    else:
+        raw_json = ""
+
+    return raw_json
 
 
 if __name__ == "__main__":

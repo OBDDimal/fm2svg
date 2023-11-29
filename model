@@ -3,7 +3,7 @@
   flexLayout: undefined,
   zoom: undefined,
   nodeIdCounter: 0,
-  isShortenedName: false,
+  isShortenedName: true,
   spaceBetweenParentChild: 75,
   spaceBetweenSiblings: 22,
   d3ParentOfAddNode: undefined,
@@ -11,7 +11,7 @@
   coloringIndex: -1,
   semanticEditing: false,
   quickEdit: false,
-  direction: 'h',
+  direction: 'v',
   // h = horizontally, v = vertically
   maxHorizontallyLevelWidth: [],
   featureModelTree: undefined,
@@ -22,4 +22,10 @@
     featureNodesContainer: undefined,
     dragContainer: undefined
   },
+  rectHeight: 35,
+  nodeColor: "rgb(204,204,255)",
+  nodeAbstractColor: "#ebebff",
+  featureFontSize: 16,
+  displayNameLength: 20,
+  displayNameRaw: 8,
 }
