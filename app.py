@@ -88,7 +88,7 @@ def download_svg(source_file, json_data):
 
     driver = webdriver.Firefox(options=options)
 
-    driver.implicitly_wait(1000)
+    driver.implicitly_wait(100)
     driver.get(source_file)
 
     # logging.warning(driver.page_source)

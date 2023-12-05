@@ -83,9 +83,6 @@
             .attr('style', 'background-color:' + d3Data.background + ";")
         {% endif %}
 
-            .call(d3Data.zoom) // Zooming and penning.
-            .on('dblclick.zoom', null);
-
         const svgContent = svg.append('g');
 
         {#d3Data.container.highlightedConstraintsContainer = svgContent#}
@@ -1033,10 +1030,10 @@
         const featureOrderSection = xmlDocument.querySelector('featureOrder');
 
         data.rootNode = getChildrenOfFeature(struct, null, data)[0];
-        data.constraints = readConstraints(
-            [...constraintsContainer.childNodes],
-            data
-        );
+        {#data.constraints = readConstraints(#}
+        {#    [...constraintsContainer.childNodes],#}
+        {#    data#}
+        {#);#}
 
         data.properties = getProperties(propertiesSection);
         data.comments = getComments(commentsSection);
@@ -1068,40 +1065,40 @@
 
     {# TODO: display constraints #}
 
-    function readConstraints(constraints, data) {
-        return constraints
-            .filter((rule) => rule.tagName)
-            .map((rule) => {
-                return [...rule.childNodes]
-                    .filter((item) => item.tagName)
-                    .map(
-                        (item) => new Constraint(readConstraintItem(item, data))
-                    )[0];
-            });
-    }
+    {#function readConstraints(constraints, data) {#}
+    {#    return constraints#}
+    {#        .filter((rule) => rule.tagName)#}
+    {#        .map((rule) => {#}
+    {#            return [...rule.childNodes]#}
+    {#                .filter((item) => item.tagName)#}
+    {#                .map(#}
+    {#                    (item) => new Constraint(readConstraintItem(item, data))#}
+    {#                )[0];#}
+    {#        });#}
+    {# }#}
 
-    function readConstraintItem(item, data) {
-        if (item.tagName === 'var') {
-            return new FeatureNodeConstraintItem(
-                data.featureMap[item.innerHTML.trim()]
-            );
-        } else {
-            const childItems = [...item.childNodes]
-                .filter((childItem) => childItem.tagName)
-                .map((childItem) => readConstraintItem(childItem, data));
-
-            switch (item.tagName) {
-                case 'disj':
-                    return new Disjunction(childItems[0], childItems[1]);
-                case 'conj':
-                    return new Conjunction(childItems[0], childItems[1]);
-                case 'imp':
-                    return new Implication(childItems[0], childItems[1]);
-                case 'not':
-                    return new Negation(childItems[0]);
-            }
-        }
-    }
+    {#function readConstraintItem(item, data) {#}
+    {#    if (item.tagName === 'var') {#}
+    {#        return new FeatureNodeConstraintItem(#}
+    {#            data.featureMap[item.innerHTML.trim()]#}
+    {#        );#}
+    {#    } else {#}
+    {#        const childItems = [...item.childNodes]#}
+    {#            .filter((childItem) => childItem.tagName)#}
+    {#            .map((childItem) => readConstraintItem(childItem, data));#}
+    {##}
+    {#        switch (item.tagName) {#}
+    {#            case 'disj':#}
+    {#                return new Disjunction(childItems[0], childItems[1]);#}
+    {#            case 'conj':#}
+    {#                return new Conjunction(childItems[0], childItems[1]);#}
+    {#            case 'imp':#}
+    {#                return new Implication(childItems[0], childItems[1]);#}
+    {#            case 'not':#}
+    {#                return new Negation(childItems[0]);#}
+    {#        }#}
+    {#    }#}
+    {# }#}
 
     function getProperties(properties) {
         if (!properties) return [];
