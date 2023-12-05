@@ -11,7 +11,7 @@
   coloringIndex: -1,
   semanticEditing: false,
   quickEdit: false,
-  direction: 'v',
+  direction: 'h',
   // h = horizontally, v = vertically
   maxHorizontallyLevelWidth: [],
   featureModelTree: undefined,
@@ -22,10 +22,10 @@
     featureNodesContainer: undefined,
     dragContainer: undefined
   },
-  rectHeight: 35,
+  rectHeight: 60,
   nodeColor: "rgb(10,10,10)",
   nodeAbstractColor: "#ebebff",
-  featureFontSize: 16,
+  featureFontSize: 32,
   displayNameLength: 20,
   displayNameRaw: 8,
   rectMargin: {right: 8, left: 8},

@@ -12,7 +12,47 @@
 <base href=".">
 <button class="btn" id="download" onclick="download()"><i class="fa fa-download"></i> Download</button>
 
+<script>
+    function download() {
+        try {
+            var isFileSaverSupported = !!new Blob();
+        } catch (e) {
+            alert("blob not supported");
+        }
+
+        var html = d3.select("svg")
+            .attr("version", 1.1)
+            .attr("xmlns", "http://www.w3.org/2000/svg")
+            .node().parentNode.innerHTML;
+
+        const styleString = document.getElementsByTagName('style')[0].outerHTML;
+
+        var split = html.split(">");
+        split[1] = styleString + split[1];
+        html = split.join('>');
+
+        var blob = new Blob([html], {type: "image/svg+xml"});
+        if (window.navigator.msSaveOrOpenBlob) // IE10+
+            window.navigator.msSaveOrOpenBlob(blob, "model.svg");
+        else {
+            var a = document.createElement("a");
+            url = URL.createObjectURL(blob);
+            a.href = url;
+            a.download = "model.svg";
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function () {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }, 0);
+        }
+    }
+
+
+</script>
+
 <script type="module">
+
     // ---------------------------------------------Init-Script---------------------------------------------------------
     function init_initData(d3Data, data) {
         // Create root-feature-node with d3 and the data of the feature-model.
@@ -38,6 +78,11 @@
             .select('#svg-container')
             .append('svg')
             .attr('preserveAspectRatio', 'xMidYMid meet')
+
+        {% if json_data != "" %}
+            .attr('style', 'background-color:' + d3Data.background + ";")
+        {% endif %}
+
             .call(d3Data.zoom) // Zooming and penning.
             .on('dblclick.zoom', null);
 
@@ -141,7 +186,7 @@
                 'viewBox',
                 `0 0 ${window.innerWidth} ${window.innerHeight - 64}`,
             )
-            ;
+        ;
 
         zoomFit(d3Data);
     }
@@ -251,106 +296,6 @@
         featureNodeEnter.append('g').classed('quick-edit-actions-container', true);
 
         updateChildrenCount(d3Data, featureNodeUpdate);
-        {#updateQuickEditActions(d3Data, featureNodeUpdate);#}
-    }
-
-    function updateQuickEditActions(d3Data, featureNodeUpdate) {
-        const quickEditActions = featureNodeUpdate
-            .select('g.quick-edit-actions-container')
-            .selectAll('g.quick-edit-actions')
-            .data(
-                (d) => (d3Data.quickEdit && d3Data.featureModelTree.editRights ? [d] : []),
-                (d) => d.data.id
-            );
-
-        const quickEditActionsEnter = quickEditActions
-            .enter()
-            .append('g')
-            .classed('quick-edit-actions', true);
-        const quickEditActionsUpdate =
-            quickEditActionsEnter.merge(quickEditActions);
-
-        // Bottom circle
-        const bottomEnter = quickEditActionsEnter
-            .append('g')
-            .classed('quick-edit-action-child', true)
-            .on('click', (e, d3Node) => {
-                e.stopPropagation();
-                d3Data.d3AddNodeIndex = d3Node.data.children.length;
-                d3Data.featureModelTree.openAddAsChildDialog(d3Node);
-            });
-        drawQuickEditGroup(bottomEnter);
-        quickEditActionsUpdate
-            .select('g.quick-edit-action-child')
-            .attr('transform', (d3Node) =>
-                d3Data.direction === 'v'
-                    ? `translate(0, ${RECT_HEIGHT})`
-                    : `translate(${d3Node.width}, 0)`
-            );
-
-        // Left side circle
-        const leftEnter = quickEditActionsEnter
-            .filter((d3Node) => !d3Node.data.isRoot)
-            .append('g')
-            .classed('quick-edit-action-left', true)
-            .on('click', (e, d3Node) => {
-                e.stopPropagation();
-                d3Data.d3AddNodeIndex = d3Node.data.parent.children.indexOf(
-                    d3Node.data
-                );
-                d3Data.featureModelTree.openAddAsSiblingDialog(d3Node);
-            });
-        drawQuickEditGroup(leftEnter);
-        quickEditActionsUpdate
-            .select('g.quick-edit-action-left')
-            .attr('transform', (d3Node) =>
-                d3Data.direction === 'v'
-                    ? `translate(${-d3Node.width / 2}, ${RECT_HEIGHT / 2})`
-                    : `translate(${d3Node.width / 2}, -${RECT_HEIGHT / 2})`
-            );
-
-        // Right side circle
-        const rightEnter = quickEditActionsEnter
-            .filter((d3Node) => !d3Node.data.isRoot)
-            .append('g')
-            .classed('quick-edit-action-right', true)
-            .on('click', (e, d3Node) => {
-                e.stopPropagation();
-                d3Data.d3AddNodeIndex =
-                    d3Node.data.parent.children.indexOf(d3Node.data) + 1;
-                d3Data.featureModelTree.openAddAsSiblingDialog(d3Node);
-            });
-        drawQuickEditGroup(rightEnter);
-        quickEditActionsUpdate.select('g.quick-edit-action-right').attr(
-            'transform',
-            (d3Node) => `
-    translate(${d3Node.width / 2}, ${RECT_HEIGHT / 2})`
-        );
-
-        quickEditActions.exit().remove();
-    }
-
-    function drawQuickEditGroup(d3Element) {
-        // Enlarge on mobile
-        const radius =
-            'ontouchstart' in window
-                ? QUICK_EDIT_RADIUS * 1.75
-                : QUICK_EDIT_RADIUS;
-        d3Element.append('circle').attr('fill', '#4caf50').attr('r', radius);
-        d3Element
-            .append('path')
-            .attr(
-                'd',
-                `M -0.5 ${-(2 * radius) / 3} h 1 v ${(4 * radius) / 3} h -1 z`
-            )
-            .attr('fill', 'white');
-        d3Element
-            .append('path')
-            .attr(
-                'd',
-                `M ${-(2 * radius) / 3} -0.5 v 1 h ${(4 * radius) / 3} v -1 z`
-            )
-            .attr('fill', 'white');
     }
 
     function updateChildrenCount(d3Data, featureNodeUpdate) {
@@ -449,89 +394,6 @@
         pseudoNode.exit().remove();
     }
 
-    function updateHighlightedConstraints(d3Data, visibleD3Nodes) {
-        const highlightedNodes = visibleD3Nodes
-            .filter((d3Node) => d3Node.data instanceof FeatureNode)
-            .map((d3Node) => ({
-                d3Node: d3Node,
-                highlightedConstraints: d3Node.data.getHighlightedConstraints(),
-            }))
-            .filter((d) => d.highlightedConstraints.length);
-
-        const highlightedConstraintNodes =
-            d3Data.container.highlightedConstraintsContainer
-                .selectAll('g.highlighted-constraints')
-                .data(
-                    highlightedNodes,
-                    (d) => d.d3Node.id || (d.d3Node.id = ++d3Data.nodeIdCounter)
-                );
-
-        const highlightedConstraintNodesEnter = highlightedConstraintNodes
-            .enter()
-            .append('g')
-            .classed('highlighted-constraints', true);
-
-        const highlightedConstraintNodeRects = highlightedConstraintNodesEnter
-            .merge(highlightedConstraintNodes)
-            .selectAll('rect')
-            .data(
-                (d) =>
-                    d.highlightedConstraints.map((c) => ({
-                        constraint: c,
-                        d3Node: d.d3Node,
-                    })),
-                (d) => d.constraint.toString() + d.d3Node.id
-            );
-
-        // Enter highlighted constraint rects
-        const highlightedConstraintNodeRectsEnter = highlightedConstraintNodeRects
-            .enter()
-            .append('rect')
-            .attr('stroke', (json) => json.constraint.color)
-            .attr('stroke-width', STROKE_WIDTH_CONSTANT)
-            .attr('fill', 'transparent');
-
-        // Update highlighted constraint rects
-        highlightedConstraintNodeRectsEnter
-            .merge(highlightedConstraintNodeRects)
-            .attr('x', (constraint) =>
-                d3Data.direction === 'v' ? -constraint.d3Node.width / 2 : 0
-            )
-            .attr('y', d3Data.direction === 'v' ? 0 : -RECT_HEIGHT / 2)
-            .attr(
-                'height',
-                (_, i) =>
-                    RECT_HEIGHT +
-                    i * 2 * STROKE_WIDTH_CONSTANT +
-                    STROKE_WIDTH_CONSTANT
-            )
-            .attr(
-                'width',
-                (constraint, i) =>
-                    constraint.d3Node.width +
-                    i * 2 * STROKE_WIDTH_CONSTANT +
-                    STROKE_WIDTH_CONSTANT
-            )
-            .attr(
-                'transform',
-                (json, i) => `
-    translate(${
-                    json.d3Node.x -
-                    i * STROKE_WIDTH_CONSTANT -
-                    STROKE_WIDTH_CONSTANT / 2
-                },
-        ${
-                    json.d3Node.y -
-                    i * STROKE_WIDTH_CONSTANT -
-                    STROKE_WIDTH_CONSTANT / 2
-                })`
-            );
-
-        // Remove constraints highlighted nodes
-        highlightedConstraintNodes.exit().remove();
-        highlightedConstraintNodeRects.exit().remove();
-    }
-
     function updateLinks(d3Data, visibleD3Nodes) {
         const links = visibleD3Nodes
             .slice(1)
@@ -558,11 +420,6 @@
 
         link.exit().remove();
     }
-
-    {#function updateColoring(d3Data) {#}
-    {#    const allNodes = d3Data.root.data.descendants();#}
-    {#    colorNodes(allNodes, d3Data.coloringIndex);#}
-    {# } #}
 
     function updateSegments(d3Data, visibleD3Nodes) {
         const segment = d3Data.container.segmentsContainer
@@ -645,8 +502,6 @@
             });
         }
 
-        {#updateColoring(d3Data);#}
-        {#updateHighlightedConstraints(d3Data, visibleD3Nodes);#}
         updateSegments(d3Data, visibleD3Nodes);
         updateFeatureNodes(d3Data, visibleD3Nodes);
         updatePseudoNodes(d3Data, visibleD3Nodes);
@@ -1094,22 +949,6 @@
                 return [this, ...this.children.map(node => node.descendants()).flat()];
             }
         }
-
-        markAsEdited() {
-            this.markedAsEdited = true;
-        }
-
-        unmarkAsEdited() {
-            this.markedAsEdited = false;
-        }
-
-        getHighlightedConstraints() {
-            return this.constraints.filter((constraint) => constraint.isHighlighted);
-        }
-
-        highlightConstraints() {
-            this.constraints.forEach((constraint) => constraint.isHighlighted = true);
-        }
     }
 
     function createFeatureNode(parent, name, groupType, mandatory, abstract) {
@@ -1161,11 +1000,9 @@
             maxHorizontallyLevelWidth: [],
             featureModelTree: undefined,
             container: {
-                highlightedConstraintsContainer: undefined,
                 linksContainer: undefined,
                 segmentsContainer: undefined,
                 featureNodesContainer: undefined,
-                dragContainer: undefined,
             },
         }
     }
@@ -1182,8 +1019,6 @@
         };
     }
 
-    {# TODO: import JSON and get root node #}
-
     function xmlToJson(currentModel, data) {
         let m = currentModel.split('\n').splice(1).join('\n');
 
@@ -1198,10 +1033,11 @@
         const featureOrderSection = xmlDocument.querySelector('featureOrder');
 
         data.rootNode = getChildrenOfFeature(struct, null, data)[0];
-        {#data.constraints = readConstraints(#}
-        {#    [...constraintsContainer.childNodes],#}
-        {#    data#}
-        {#);#}
+        data.constraints = readConstraints(
+            [...constraintsContainer.childNodes],
+            data
+        );
+
         data.properties = getProperties(propertiesSection);
         data.comments = getComments(commentsSection);
         data.featureOrder = getFeatureOrder(featureOrderSection);
@@ -1233,40 +1069,38 @@
     {# TODO: display constraints #}
 
     function readConstraints(constraints, data) {
-        return null;
-        {#    return constraints#}
-        {#        .filter((rule) => rule.tagName)#}
-        {#        .map((rule) => {#}
-        {#            return [...rule.childNodes]#}
-        {#                .filter((item) => item.tagName)#}
-        {#                .map(#}
-        {#                    (item) => new Constraint(readConstraintItem(item, data))#}
-        {#                )[0];#}
-        {#        });#}
+        return constraints
+            .filter((rule) => rule.tagName)
+            .map((rule) => {
+                return [...rule.childNodes]
+                    .filter((item) => item.tagName)
+                    .map(
+                        (item) => new Constraint(readConstraintItem(item, data))
+                    )[0];
+            });
     }
 
     function readConstraintItem(item, data) {
-        return null;
-        {#    if (item.tagName === 'var') {#}
-        {#        return new FeatureNodeConstraintItem(#}
-        {#            data.featureMap[item.innerHTML.trim()]#}
-        {#        );#}
-        {#    } else {#}
-        {#        const childItems = [...item.childNodes]#}
-        {#            .filter((childItem) => childItem.tagName)#}
-        {#            .map((childItem) => readConstraintItem(childItem, data));#}
-        {##}
-        {#        switch (item.tagName) {#}
-        {#            case 'disj':#}
-        {#                return new Disjunction(childItems[0], childItems[1]);#}
-        {#            case 'conj':#}
-        {#                return new Conjunction(childItems[0], childItems[1]);#}
-        {#            case 'imp':#}
-        {#                return new Implication(childItems[0], childItems[1]);#}
-        {#            case 'not':#}
-        {#                return new Negation(childItems[0]);#}
-        {#        }#}
-        {#    }#}
+        if (item.tagName === 'var') {
+            return new FeatureNodeConstraintItem(
+                data.featureMap[item.innerHTML.trim()]
+            );
+        } else {
+            const childItems = [...item.childNodes]
+                .filter((childItem) => childItem.tagName)
+                .map((childItem) => readConstraintItem(childItem, data));
+
+            switch (item.tagName) {
+                case 'disj':
+                    return new Disjunction(childItems[0], childItems[1]);
+                case 'conj':
+                    return new Conjunction(childItems[0], childItems[1]);
+                case 'imp':
+                    return new Implication(childItems[0], childItems[1]);
+                case 'not':
+                    return new Negation(childItems[0]);
+            }
+        }
     }
 
     function getProperties(properties) {

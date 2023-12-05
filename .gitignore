@@ -401,5 +401,6 @@ pyrightconfig.json
 .idea
 
 geckodriver.log
+*.svg
 
 model_big.xml
