@@ -34,18 +34,24 @@ def index():
     return Response("Running...", status=200)
 
 
+@app.route('/configure', methods=["GET"])
+def configure():
+    return render_template('test.html')
+
+
 @app.route('/', methods=["GET", "POST"])
 def render():
     if request.method == 'POST':
-        if "xml" not in request.files:
+        if "xml" in request.form:
+            raw_xml = request.form["xml"]
+            if "json_data" in request.form:
+                raw_json = request.form["json_data"]
+        elif "xml" not in request.files:
             flash("no file supplied")
             return Response("no file supplied", status=422)
-
-        raw_xml = handle_xml(request)
-
-        raw_json = handle_json(request)
-
-        logging.warning(render_template("fmviewer.html", xml=raw_xml, json_data=raw_json))
+        else:
+            raw_xml = handle_xml(request)
+            raw_json = handle_json(request)
 
         return render_template("fmviewer.html", xml=raw_xml, json_data=raw_json)
     else:
@@ -91,15 +97,14 @@ def download_svg(source_file, json_data):
     driver.implicitly_wait(100)
     driver.get(source_file)
 
-    # logging.warning(driver.page_source)
-
     svg = driver.find_element(by=By.TAG_NAME, value="svg").get_attribute("innerHTML")
     svg_outer_html = driver.find_element(by=By.TAG_NAME, value="svg").get_attribute("outerHTML")
     viewbox = re.search('viewBox="[0-9]* [0-9]* [0-9]* [0-9]*"', svg_outer_html).group(0)
 
+    logging.warning(json_data)
+    logging.warning("teeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeest")
+
     if json_data != "":
-        logging.warning(json_data)
-        logging.warning(re.search('background:', json_data).group(0))
         regex = re.search('background:.*"(.*)",', json_data).group(1)
         background = ' style="background-color:' + regex + ';"'
     else:
@@ -139,7 +144,8 @@ def handle_json(request):
         json = request.files["json_data"]
 
         if not json or json.filename == "":
-            raw_json = ""
+            with open("static/themes/variability.dev.theme", "r") as file:
+                raw_json = file.read()
         else:
             filename = secure_filename(json.filename)
             filepath = path.join(UPLOAD_FOLDER, filename)
@@ -147,12 +153,16 @@ def handle_json(request):
 
             with open(filepath, "r") as file:
                 raw_json = file.read()
-
-            raw_json = "let d3Data = " + raw_json + ";"
     else:
-        raw_json = ""
+        with open("static/themes/variability.dev.theme", "r") as file:
+            raw_json = file.read()
 
     return raw_json
+
+
+@app.route('/test', methods=["GET"])
+def test():
+    return render_template("test.html")
 
 
 if __name__ == "__main__":

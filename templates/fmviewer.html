@@ -8,9 +8,264 @@
 <script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3-flextree@2.0.0/build/d3-flextree.js"></script>
 <body>
-<div id="svg-container"></div>
-<base href=".">
-<button class="btn" id="download" onclick="download()"><i class="fa fa-download"></i> Download</button>
+<style>
+    .ghost-circle {
+        fill: red;
+        fill-opacity: 0.2;
+    }
+
+    .ghost-circle-highlighted {
+        fill-opacity: 0.8;
+    }
+
+    #svg-container {
+        width: 100%;
+        height: calc(100vh - 64px);
+    }
+
+    .node {
+        vertical-align: middle;
+    }
+
+    .is-searched-feature {
+        fill: lightcoral;
+    }
+
+    .node rect {
+        transition: all 0.75s;
+        stroke: #888;
+        stroke-width: 1px;
+    }
+
+    .node text {
+        /* fill: black; */
+        font-family: monospace;
+        text-anchor: middle;
+        user-select: none;
+    }
+
+    .and-group-circle {
+        stroke: #888;
+        stroke-width: 1.5px;
+        opacity: 0;
+    }
+
+    .optional-and-group-circle {
+        fill: white;
+        opacity: 1;
+    }
+
+    .mandatory-and-group-circle {
+        fill: rgb(136, 136, 136);
+        opacity: 1;
+    }
+
+    .alt-group {
+        fill: white;
+        stroke: #888;
+        stroke-width: 1.5px;
+    }
+
+    .or-group {
+        fill: #888;
+        stroke: #888;
+        stroke-width: 1.5px;
+    }
+
+    .link {
+        fill: none;
+        stroke: #888;
+        stroke-width: 1.5px;
+    }
+
+    .is-searched-link {
+        fill: none;
+        stroke: lightcoral;
+        stroke-width: 1.5px;
+    }
+
+    .children-count > circle {
+        fill: white;
+        stroke: #888;
+        stroke-width: 1.5px;
+    }
+
+    .pseudo-node {
+        vertical-align: middle;
+    }
+
+    .pseudo-node circle {
+        fill: white;
+        stroke: #888;
+        stroke-width: 1.5px;
+    }
+
+    .feature-model-constraints {
+        position: absolute;
+        background-color: white;
+        bottom: 0;
+        width: 100%;
+        box-shadow: 0 10px 10px #888, 0px -10px 10px #888;
+        padding: 2rem;
+        min-height: 10%;
+        max-height: 20%;
+        overflow: scroll;
+    }
+
+    polygon {
+        stroke: #888;
+    }
+
+    .children-count-text {
+        fill: black !important;
+    }
+
+    .blackText {
+        fill: black !important;
+    }
+
+    .whiteText {
+        fill: white !important;
+    }
+</style>
+<div id="split_left">
+    <div id="settings">
+        <form method="POST" id="settings_form" enctype="multipart/form-data" target="_self" onsubmit="submitData()">
+            <textarea name="xml" id="textarea_xml" hidden></textarea>
+            <textarea name="json_data" id="textarea_json" hidden></textarea>
+            <label for="presetTheme">Load a theme:</label>
+            <select id="presetTheme" name="presetTheme" onchange="changeTheme()">
+                <option value="0">variability.dev</option>
+                <option value="1">variability.dev - dark</option>
+                <option value="2">FeatureIDE</option>
+                <option value="3">Custom Theme</option>
+            </select>
+            <button onclick="downloadTheme()">Download current theme</button>
+            <br>
+
+            <label for="themeName">Theme Name:</label>
+            <input type="text" id="themeName" name="themeName">
+            <br>
+            <label for="direction">Direction:</label>
+            <input type="text" id="direction" name="direction">
+            <br>
+            <label for="withOverlapping">Without overlapping:</label>
+            <input type="text" id="withOverlapping" name="withOverlapping">
+            <br>
+            <label for="collapsing">Collapsing:</label>
+            <input type="text" id="collapsing" name="collapsing">
+            <br>
+            <label for="collapsingParam">Collapsing Parameters:</label>
+            <input type="text" id="collapsingParam" name="collapsingParam">
+            <br>
+            <label for="spaceBetweenParentChild">Space between Parent and Child:</label>
+            <input type="number" id="spaceBetweenParentChild" name="spaceBetweenParentChild">
+            <br>
+            <label for="spaceBetweenSiblings">spaceBetweenSiblings:</label>
+            <input type="number" id="spaceBetweenSiblings" name="spaceBetweenSiblings">
+            <br>
+            <label for="customCss">customCss:</label>
+            <textarea id="customCss" name="customCss"></textarea>
+            <br>
+            <label for="background">Background color:</label>
+            <input type="color" id="background" name="background">
+            <br>
+            <label for="isShortenedName">isShortenedName:</label>
+            <input type="text" id="isShortenedName" name="isShortenedName">
+            <br>
+            <label for="rectHeight">rectHeight:</label>
+            <input type="number" id="rectHeight" name="rectHeight">
+            <br>
+            <label for="nodeColor">nodeColor:</label>
+            <input type="color" id="nodeColor" name="nodeColor">
+            <br>
+            <label for="nodeAbstractColor">nodeAbstractColor:</label>
+            <input type="color" id="nodeAbstractColor" name="nodeAbstractColor">
+            <br>
+            <label for="featureFontSize">featureFontSize:</label>
+            <input type="number" id="featureFontSize" name="featureFontSize">
+            <br>
+            <label for="displayNameLength">displayNameLength:</label>
+            <input type="number" id="displayNameLength" name="displayNameLength">
+            <br>
+            <label for="displayNameRaw">displayNameRaw:</label>
+            <input type="text" id="displayNameRaw" name="displayNameRaw">
+            <br>
+            {#            #}
+            {##}
+            {#            <select id="direction" name="direction" onchange="update()">#}
+            {#                <option>horizontal</option>#}
+            {#                <optgroup label="vertical">#}
+            {#                    <option>with overlaps (TODO)</option>#}
+            {#                    <option>without overlaps</option>#}
+            {#                </optgroup>#}
+            {#            </select>#}
+            {##}
+            {#            <br>#}
+            {##}
+            {#            <label>Collapsing</label>#}
+            {#            <select id="kind_of_collapsing" name="kind_of_collapsing" onchange="update()">#}
+            {#                <option value="0">Show all</option>#}
+            {#                <option value="1">Show first n features</option>#}
+            {#                <option value="2">Show first n levels</option>#}
+            {#                <option value="3">Show specified levels</option>#}
+            {#            </select>#}
+            {##}
+            {#            <div id="meta_collapsing_1">#}
+            {#                <label for="meta_collapsing_checkbox">Show first n features</label>#}
+            {#                <select id="meta_collapsing_select" name="meta_collapsing_select" onchange="update()">#}
+            {#                    <option>Breadth First</option>#}
+            {#                    <option>Depth First</option>#}
+            {#                </select>#}
+            {#            </div>#}
+            {##}
+            {#            <div id="meta_collapsing_2">#}
+            {#                <label for="meta_collapsing_levels">Show first n levels</label>#}
+            {#                <input type="text" id="meta_collapsing_levels" name="meta_collapsing_levels" onchange="update()"#}
+            {#                       onkeydown="update()">#}
+            {#            </div>#}
+            {##}
+            {#            <div id="meta_collapsing_3">#}
+            {#                <label for="meta_collapsing_levels">Show specified levels (f.e. 1;2;5)</label>#}
+            {#                <input type="text" id="meta_collapsing_levels" name="meta_collapsing_levels" onchange="update()"#}
+            {#                       onkeydown="update()">#}
+            {#            </div>#}
+            {##}
+            {#            <br>#}
+
+            <button id="reload" type="submit">Apply Changes</button>
+        </form>
+    </div>
+</div>
+<style>
+    #split_left {
+        height: 100%;
+        width: 20%;
+        position: fixed;
+        z-index: 1;
+        top: 0;
+        overflow-x: hidden;
+        padding-top: 20px;
+    }
+
+    #split_right {
+        height: 100%;
+        width: 80%;
+        position: fixed;
+        z-index: 0;
+        top: 0;
+        right: 0;
+        overflow-x: hidden;
+        padding-top: 20px;
+    }
+</style>
+
+<div id="split_right">
+    <div id="svg-container"></div>
+    <button class="btn" id="download" onclick="download()"><i class="fa fa-download"></i> Download</button>
+</div>
+
+{#<base href=".">#}
 
 <script>
     function download() {
@@ -47,12 +302,9 @@
             }, 0);
         }
     }
-
-
 </script>
 
-<script type="module">
-
+<script>
     // ---------------------------------------------Init-Script---------------------------------------------------------
     function init_initData(d3Data, data) {
         // Create root-feature-node with d3 and the data of the feature-model.
@@ -78,10 +330,7 @@
             .select('#svg-container')
             .append('svg')
             .attr('preserveAspectRatio', 'xMidYMid meet')
-
-        {% if json_data != "" %}
-            .attr('style', 'background-color:' + d3Data.background + ";")
-        {% endif %}
+            .attr('style', 'background-color:' + json_data.background + ";")
 
         const svgContent = svg.append('g');
 
@@ -985,15 +1234,15 @@
             flexLayout: undefined,
             zoom: undefined,
             nodeIdCounter: 0,
-            isShortenedName: false,
-            spaceBetweenParentChild: 75,
-            spaceBetweenSiblings: 20,
+            isShortenedName: isShortenedName,
+            spaceBetweenParentChild: spaceBetweenParentChild,
+            spaceBetweenSiblings: spaceBetweenSiblings,
             d3ParentOfAddNode: undefined,
             d3AddNodeIndex: 0,
             coloringIndex: -1,
             semanticEditing: false,
             quickEdit: false,
-            direction: 'v', // h = horizontally, v = vertically
+            direction: directionParam, // h = horizontally, v = vertically
             maxHorizontallyLevelWidth: [],
             featureModelTree: undefined,
             container: {
@@ -1130,33 +1379,27 @@
 
     const xml = `{{ xml|safe }}`;
 
-    {% if json_data != ""%}
-        {{ json_data|safe }}
-    {% else %}
-        let d3Data = initD3Data();
-    {% endif %}
-
     // -- const --
 
-    {% if json_data != "" %}
-        const RECT_HEIGHT = d3Data.rectHeight;
-        const NODE_COLOR = d3Data.nodeColor;
-        const NODE_ABSTRACT_COLOR = d3Data.nodeAbstractColor;
-        const FEATURE_FONT_SIZE = d3Data.featureFontSize;
-        const DISPLAY_NAME_LENGTH = d3Data.displayNameLength;
-        const DISPLAY_NAME_RAW = d3Data.displayNameRaw;
-        const RECT_MARGIN = d3Data.rectMargin;
-    {% else %}
-        const RECT_HEIGHT = 35;
-        const NODE_COLOR = "rgb(204, 204, 255)";
-        const NODE_ABSTRACT_COLOR = "#ebebff";
-        const FEATURE_FONT_SIZE = 16;
-        const DISPLAY_NAME_LENGTH = 8;
-        const DISPLAY_NAME_RAW = 5;
-        const RECT_MARGIN = {right: 8, left: 8};
+    const json_data = {{ json_data|safe }};
+    const themeName = json_data.themeName;
+    const directionParam = json_data.direction;
+    const withOverlapping = json_data.withOverlapping;
+    const collapsing = json_data.collpasing;
+    const collapsingParam = json_data.collapsingParam;
+    const spaceBetweenParentChild = eval(json_data.spaceBetweenParentChild);
+    const spaceBetweenSiblings = eval(json_data.spaceBetweenSiblings);
+    const customCss = json_data.customCss;
+    const presetTheme = json_data.presetTheme;
+    const isShortenedName = json_data.feature.isShortenedName;
+    const RECT_HEIGHT = eval(json_data.feature.rectHeight);
+    const NODE_COLOR = json_data.feature.nodeColor;
+    const NODE_ABSTRACT_COLOR = json_data.feature.nodeAbstractColor;
+    const FEATURE_FONT_SIZE = eval(json_data.feature.featureFontSize);
+    const DISPLAY_NAME_LENGTH = eval(json_data.feature.displayNameLength);
+    const DISPLAY_NAME_RAW = eval(json_data.feature.displayNameRaw);
 
-    {% endif %}
-
+    const RECT_MARGIN = {right: 8, left: 8};
     const POINTS = '...';
     const NODE_EDITED_COLOR = "rgb(197,196,120)";
     const MONOSPACE_HEIGHT_WIDTH_FACTOR = 0.6;
@@ -1168,137 +1411,139 @@
     const TRIANGLE_BORDER_OFFSET = 11;
 
     const MANDATORY_CIRCLE_RADIUS = 6;
+
     // ---
+    function submitData() {
+        document.getElementById("textarea_xml").value = `{{ xml|safe }}`;
+        document.getElementById("textarea_json").value = saveFormData();
+        return true;
+    }
 
+    function loadTheme(theme, automatic) {
+        var file;
+        switch (theme) {
+            case "0":
+                file = "{{ url_for('static', filename='themes/variability.dev.theme') }}";
+                break;
+            case "1":
+                file = "{{ url_for('static', filename='themes/variability.dev_dark.theme') }}";
+                break;
+            case "2":
+                break;
+            case "3":
+                if (!automatic) {
+                    file = uploadTheme();
+                }
+                break;
+            default:
+                file = "{{ url_for('static', filename='themes/variability.dev.theme') }}";
+                break;
+        }
+        fetch(file)
+            .then((res) => res.text())
+            .then((text) => {
+                document.getElementById("textarea_json").value = text;
+                initFormData(text);
+                reload();
+            })
+            .catch((e) => console.error(e));
+    }
 
+    function changeTheme() {
+        let newTheme = document.getElementById("presetTheme").value;
+        loadTheme(newTheme, true);
+    }
+
+    function reload() {
+        document.getElementById("reload").click();
+    }
+
+    function initFormData(json) {
+        let json_data;
+        if(typeof json ==="string"){
+            json_data = eval("(" + json + ")");
+        }
+        else{
+            json_data = json;
+        }
+        for (const [key, value] of Object.entries(json_data)) {
+            if (key === "feature") {
+                for (const [key, value] of Object.entries(json_data.feature)) {
+                    document.getElementById(key).value = value;
+                }
+            } else {
+                document.getElementById(key).value = value;
+            }
+        }
+    }
+
+    function saveFormData() {
+        const json_data = {{ json_data|safe }};
+        let new_json_data = "{\n";
+        for (const [key, _] of Object.entries(json_data)) {
+            if (key === "feature") {
+                new_json_data += "feature: {\n"
+                for (const [key, _] of Object.entries(json_data.feature)) {
+                    new_json_data += key + ": \"" + document.getElementById(key).value + "\",\n";
+                }
+                new_json_data += "},\n"
+            } else {
+                let value = document.getElementById(key).value;
+                if (value.startsWith("#")) {
+                    value = String(value);
+                }
+                new_json_data += key + ": \"" + document.getElementById(key).value + "\",\n";
+            }
+        }
+        new_json_data += "}";
+        return new_json_data;
+
+    }
+
+    function downloadTheme() {
+        try {
+            var isFileSaverSupported = !!new Blob();
+        } catch (e) {
+            alert("blob not supported");
+        }
+
+        var obj = saveFormData();
+        var name = document.getElementById("themeName").value + ".theme";
+
+        var blob = new Blob([obj], {type: "text/plain"});
+        if (window.navigator.msSaveOrOpenBlob) // IE10+
+            window.navigator.msSaveOrOpenBlob(blob, name);
+        else {
+            var a = document.createElement("a");
+            url = URL.createObjectURL(blob);
+            a.href = url;
+            a.download = name;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function () {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }, 0);
+        }
+     }
+
+    let d3Data = initD3Data();
     let data = initData();
     xmlToJson(xml, data);
     const rootNode = data.rootNode;
     init_initialize(d3Data, rootNode);
     reset(d3Data);
 
+    initFormData({{ json_data|safe }});
 </script>
-<style>
-    .ghost-circle {
-        fill: red;
-        fill-opacity: 0.2;
-    }
 
-    .ghost-circle-highlighted {
-        fill-opacity: 0.8;
-    }
-
-    #svg-container {
-        width: 100%;
-        height: calc(100vh - 64px);
-    }
-
-    .node {
-        cursor: pointer;
-        vertical-align: middle;
-    }
-
-    .is-searched-feature {
-        fill: lightcoral;
-    }
-
-    .node rect {
-        transition: all 0.75s;
-        stroke: #888;
-        stroke-width: 1px;
-    }
-
-    .node text {
-        /* fill: black; */
-        font-family: monospace;
-        text-anchor: middle;
-        user-select: none;
-    }
-
-    .and-group-circle {
-        stroke: #888;
-        stroke-width: 1.5px;
-        opacity: 0;
-    }
-
-    .optional-and-group-circle {
-        fill: white;
-        opacity: 1;
-    }
-
-    .mandatory-and-group-circle {
-        fill: rgb(136, 136, 136);
-        opacity: 1;
-    }
-
-    .alt-group {
-        fill: white;
-        stroke: #888;
-        stroke-width: 1.5px;
-    }
-
-    .or-group {
-        fill: #888;
-        stroke: #888;
-        stroke-width: 1.5px;
-    }
-
-    .link {
-        fill: none;
-        stroke: #888;
-        stroke-width: 1.5px;
-    }
-
-    .is-searched-link {
-        fill: none;
-        stroke: lightcoral;
-        stroke-width: 1.5px;
-    }
-
-    .children-count > circle {
-        fill: white;
-        stroke: #888;
-        stroke-width: 1.5px;
-    }
-
-    .pseudo-node {
-        cursor: pointer;
-        vertical-align: middle;
-    }
-
-    .pseudo-node circle {
-        fill: white;
-        stroke: #888;
-        stroke-width: 1.5px;
-    }
-
-    .feature-model-constraints {
-        position: absolute;
-        background-color: white;
-        bottom: 0;
-        width: 100%;
-        box-shadow: 0 10px 10px #888, 0px -10px 10px #888;
-        padding: 2rem;
-        min-height: 10%;
-        max-height: 20%;
-        overflow: scroll;
-    }
-
-    polygon {
-        stroke: #888;
-    }
-
-    .children-count-text {
-        fill: black !important;
-    }
-
-    .blackText {
-        fill: black !important;
-    }
-
-    .whiteText {
-        fill: white !important;
-    }
-</style>
+<script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
+<script>
+    WebFont.load({
+        google: {
+            families: ["Roboto:100,300,400,500,700,900&display=swap"],
+        },
+    });
+</script>
 </body>
 </html>
