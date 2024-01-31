@@ -132,6 +132,7 @@
     <div id="settings">
         <form method="POST" id="settings_form" enctype="multipart/form-data" target="_self" onsubmit="submitData()">
             <textarea name="xml" id="textarea_xml" hidden></textarea>
+            <textarea name="load_local_storage" id="load_local_storage" hidden></textarea>
             <textarea name="json_data" id="textarea_json" hidden></textarea>
             <label for="presetTheme">Load a theme:</label>
             <select id="presetTheme" name="presetTheme" onchange="changeTheme()">
@@ -1416,6 +1417,8 @@
     function submitData() {
         document.getElementById("textarea_xml").value = `{{ xml|safe }}`;
         document.getElementById("textarea_json").value = saveFormData();
+        document.getElementById("load_local_storage").value = false;
+        localStorage.setItem("json", document.getElementById("textarea_json").value);
         return true;
     }
 
@@ -1460,10 +1463,9 @@
 
     function initFormData(json) {
         let json_data;
-        if(typeof json ==="string"){
+        if (typeof json === "string") {
             json_data = eval("(" + json + ")");
-        }
-        else{
+        } else {
             json_data = json;
         }
         for (const [key, value] of Object.entries(json_data)) {
@@ -1525,7 +1527,7 @@
                 window.URL.revokeObjectURL(url);
             }, 0);
         }
-     }
+    }
 
     let d3Data = initD3Data();
     let data = initData();
@@ -1534,7 +1536,18 @@
     init_initialize(d3Data, rootNode);
     reset(d3Data);
 
-    initFormData({{ json_data|safe }});
+    {% if load_local_storage %}
+        if(localStorage.getItem("json") !== null){
+            initFormData(localStorage.getItem("json"));
+            document.getElementById("presetTheme").value = 3;
+            reload();
+        }
+        else{
+            initFormData({{ json_data|safe }});
+        }
+    {% else %}
+        initFormData({{ json_data|safe }});
+    {% endif %}
 </script>
 
 <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>

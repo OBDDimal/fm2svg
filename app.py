@@ -53,7 +53,8 @@ def render():
             raw_xml = handle_xml(request)
             raw_json = handle_json(request)
 
-        return render_template("fmviewer.html", xml=raw_xml, json_data=raw_json)
+        return render_template("fmviewer.html", xml=raw_xml, json_data=raw_json, load_local_storage=
+            not ("load_local_storage" in request.form))
     else:
         return render_template("index.html")
 
