@@ -1590,15 +1590,14 @@
     }
 
     function toggleLegend() {
-        if (!this.showLegend) {
+        if (!showLegend) {
             // Legend shown until now=> hide
             hideLegend();
             d3Data.showLegend = false;
         } else {
             // Legend not shown until now => re initialize
-            init_initLegend(this.d3Data);
-            this.d3Data.showLegend = true;
-            this.showHideLegendBtn = true;
+            init_initLegend(d3Data);
+            d3Data.showLegend = true;
         }
         updateSvg(this.d3Data);
     }
