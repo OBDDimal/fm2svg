@@ -2,13 +2,8 @@
   themeName: 'variability.dev',
   presetTheme: "0",
   direction: 'h',
-  withOverlapping: false,
-  collapsing: '',
-  collapsingParam: '',
   spaceBetweenParentChild: 75,
   spaceBetweenSiblings: 22,
-
-  customCss:'.ghost-circle {        fill: red;        fill-opacity: 0.2;    }    .ghost-circle-highlighted {        fill-opacity: 0.8;    }    #svg-container {        width: 100%;        height: calc(100vh - 64px);    }    .node {        vertical-align: middle;    }    .is-searched-feature {        fill: lightcoral;    }    .node rect {        transition: all 0.75s;        stroke: #888;        stroke-width: 1px;    }    .node text {        font-family: monospace;        text-anchor: middle;        user-select: none;    }    .and-group-circle {        stroke: #888;        stroke-width: 1.5px;        opacity: 0;    }    .optional-and-group-circle {        fill: white;        opacity: 1;    }    .mandatory-and-group-circle {        fill: rgb(136, 136, 136);        opacity: 1;    }    .alt-group {        fill: white;        stroke: #888;        stroke-width: 1.5px;    }    .or-group {        fill: #888;        stroke: #888;        stroke-width: 1.5px;    }    .link {        fill: none;        stroke: #888;        stroke-width: 1.5px;    }    .is-searched-link {        fill: none;        stroke: lightcoral;        stroke-width: 1.5px;    }    .children-count > circle {        fill: white;        stroke: #888;        stroke-width: 1.5px;    }    .pseudo-node {        vertical-align: middle;    }    .pseudo-node circle {        fill: white;        stroke: #888;        stroke-width: 1.5px;    }    .feature-model-constraints {        position: absolute;        background-color: white;        bottom: 0;        width: 100%;        box-shadow: 0 10px 10px #888, 0px -10px 10px #888;        padding: 2rem;        min-height: 10%;        max-height: 20%;        overflow: scroll;    }    polygon {        stroke: #888;    }    .children-count-text {        fill: black !important;    }    .blackText {        fill: black !important;    }    .whiteText {        fill: white !important;    }',
 
   background: "#ffffff",
 

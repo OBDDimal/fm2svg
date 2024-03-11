@@ -1,5 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
+
+{# TODO: 1. Legende #}
+{# TODO: 2. Cross-Tree-Constraints #}
+{# TODO: 3. Fancy: #}
+{# TODO: 3.1 Download-button #}
+{# TODO: 3.2 Theme buttons #}
+{# TODO: 3.3 Theme upload #}
+{# TODO: 3.4 Fix alignment #}
+{# TODO: 3.4 Preview #}
+
+
 <head>
     <meta charset="UTF-8">
     <title>FM2SVG</title>
@@ -128,73 +139,93 @@
         fill: white !important;
     }
 </style>
-<div id="split_left">
-    <div id="settings">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+      integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+        crossorigin="anonymous"></script>
+<a style="position: absolute; z-index: 1; margin-top: 1em;  margin-left: 1em" class="btn btn-primary"
+   data-bs-toggle="offcanvas" href="#offcanvasExample" role="button" aria-controls="offcanvasExample">
+    <i style="font-size:24px" class="fa">&#xf013;</i>
+</a>
+
+<div class="offcanvas offcanvas-start w-auto" tabindex="-1" id="offcanvasExample"
+     aria-labelledby="offcanvasExampleLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="offcanvasExampleLabel">Customize</h5>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
         <form method="POST" id="settings_form" enctype="multipart/form-data" target="_self" onsubmit="submitData()">
             <textarea name="xml" id="textarea_xml" hidden></textarea>
             <textarea name="load_local_storage" id="load_local_storage" hidden></textarea>
             <textarea name="json_data" id="textarea_json" hidden></textarea>
-            <label for="presetTheme">Load a theme:</label>
-            <select id="presetTheme" name="presetTheme" onchange="changeTheme()">
+            <label for="presetTheme" class="form-label">Load a theme:</label>
+            <select class="float-end" id="presetTheme" name="presetTheme" onchange="changeTheme()" style="background-color: #0b5ed7;
+  border-color: #0a58ca; color: white; ">
                 <option value="0">variability.dev</option>
                 <option value="1">variability.dev - dark</option>
                 <option value="2">FeatureIDE</option>
                 <option value="3">Custom Theme</option>
             </select>
-            <button onclick="downloadTheme()">Download current theme</button>
+            <button onclick="downloadTheme()" style="margin-left: 1em">Download current theme</button>
+
             <br>
 
-            <label for="themeName">Theme Name:</label>
-            <input type="text" id="themeName" name="themeName">
+            <label for="themeName" class="form-label">Theme Name:</label>
+            <input class="float-end" type="text" id="themeName" name="themeName">
             <br>
-            <label for="direction">Direction:</label>
-            <input type="text" id="direction" name="direction">
+            <label for="direction" class="form-label">Direction:</label>
+            <input class="float-end" type="text" id="direction" name="direction">
             <br>
-            <label for="withOverlapping">Without overlapping:</label>
-            <input type="text" id="withOverlapping" name="withOverlapping">
+
+            {#            customCss:'.ghost-circle {        fill: red;        fill-opacity: 0.2;    }    .ghost-circle-highlighted {        fill-opacity: 0.8;    }    #svg-container {        width: 100%;        height: calc(100vh - 64px);    }    .node {        vertical-align: middle;    }    .is-searched-feature {        fill: lightcoral;    }    .node rect {        transition: all 0.75s;        stroke: #888;        stroke-width: 1px;    }    .node text {        font-family: monospace;        text-anchor: middle;        user-select: none;    }    .and-group-circle {        stroke: #888;        stroke-width: 1.5px;        opacity: 0;    }    .optional-and-group-circle {        fill: white;        opacity: 1;    }    .mandatory-and-group-circle {        fill: rgb(136, 136, 136);        opacity: 1;    }    .alt-group {        fill: white;        stroke: #888;        stroke-width: 1.5px;    }    .or-group {        fill: #888;        stroke: #888;        stroke-width: 1.5px;    }    .link {        fill: none;        stroke: #888;        stroke-width: 1.5px;    }    .is-searched-link {        fill: none;        stroke: lightcoral;        stroke-width: 1.5px;    }    .children-count > circle {        fill: white;        stroke: #888;        stroke-width: 1.5px;    }    .pseudo-node {        vertical-align: middle;    }    .pseudo-node circle {        fill: white;        stroke: #888;        stroke-width: 1.5px;    }    .feature-model-constraints {        position: absolute;        background-color: white;        bottom: 0;        width: 100%;        box-shadow: 0 10px 10px #888, 0px -10px 10px #888;        padding: 2rem;        min-height: 10%;        max-height: 20%;        overflow: scroll;    }    polygon {        stroke: #888;    }    .children-count-text {        fill: black !important;    }    .blackText {        fill: black !important;    }    .whiteText {        fill: white !important;    }',#}
+
+            {#            <label for="withOverlapping" class="form-label">Without overlapping:</label>#}
+            {#            <input class="float-end" type="text" id="withOverlapping" name="withOverlapping">#}
+            {#            <br>#}
+            {#            <label for="collapsing" class="form-label">Collapsing:</label>#}
+            {#            <input class="float-end" type="text" id="collapsing" name="collapsing">#}
+            {#            <br>#}
+            {#            <label for="collapsingParam" class="form-label">Collapsing Parameters:</label>#}
+            {#            <input class="float-end" type="text" id="collapsingParam" name="collapsingParam">#}
+            {#            <br>#}
+            <label for="spaceBetweenParentChild" class="form-label">Space between Parent and Child:</label>
+            <input class="float-end" type="number" id="spaceBetweenParentChild" name="spaceBetweenParentChild">
             <br>
-            <label for="collapsing">Collapsing:</label>
-            <input type="text" id="collapsing" name="collapsing">
+            <label for="spaceBetweenSiblings" class="form-label">spaceBetweenSiblings:</label>
+            <input class="float-end" type="number" id="spaceBetweenSiblings" name="spaceBetweenSiblings">
             <br>
-            <label for="collapsingParam">Collapsing Parameters:</label>
-            <input type="text" id="collapsingParam" name="collapsingParam">
+            {#            <label for="customCss" class="form-label">customCss:</label>#}
+            {#            <textarea class="float-end" id="customCss" name="customCss"></textarea>#}
+            {#            <br>#}
+            {#            <br>#}
+            <label for="background" class="form-label">Background color:</label>
+            <input type="color" class="float-end" id="background" name="background">
             <br>
-            <label for="spaceBetweenParentChild">Space between Parent and Child:</label>
-            <input type="number" id="spaceBetweenParentChild" name="spaceBetweenParentChild">
+            <label for="isShortenedName" class="form-label">isShortenedName:</label>
+            <input type="text" class="float-end" id="isShortenedName" name="isShortenedName">
             <br>
-            <label for="spaceBetweenSiblings">spaceBetweenSiblings:</label>
-            <input type="number" id="spaceBetweenSiblings" name="spaceBetweenSiblings">
+            <label for="rectHeight" class="form-label">rectHeight:</label>
+            <input type="number" class="float-end" id="rectHeight" name="rectHeight">
             <br>
-            <label for="customCss">customCss:</label>
-            <textarea id="customCss" name="customCss"></textarea>
+            <label for="nodeColor" class="form-label">nodeColor:</label>
+            <input type="color" class="float-end" id="nodeColor" name="nodeColor">
             <br>
-            <label for="background">Background color:</label>
-            <input type="color" id="background" name="background">
+            <label for="nodeAbstractColor" class="form-label">nodeAbstractColor:</label>
+            <input type="color" class="float-end" id="nodeAbstractColor" name="nodeAbstractColor">
             <br>
-            <label for="isShortenedName">isShortenedName:</label>
-            <input type="text" id="isShortenedName" name="isShortenedName">
+            <label for="featureFontSize" class="form-label">featureFontSize:</label>
+            <input type="number" class="float-end" id="featureFontSize" name="featureFontSize">
             <br>
-            <label for="rectHeight">rectHeight:</label>
-            <input type="number" id="rectHeight" name="rectHeight">
+            <label for="displayNameLength" class="form-label">displayNameLength:</label>
+            <input type="number" class="float-end" id="displayNameLength" name="displayNameLength">
             <br>
-            <label for="nodeColor">nodeColor:</label>
-            <input type="color" id="nodeColor" name="nodeColor">
+            <label for="displayNameRaw" class="form-label">displayNameRaw:</label>
+            <input type="text" class="float-end" id="displayNameRaw" name="displayNameRaw">
             <br>
-            <label for="nodeAbstractColor">nodeAbstractColor:</label>
-            <input type="color" id="nodeAbstractColor" name="nodeAbstractColor">
-            <br>
-            <label for="featureFontSize">featureFontSize:</label>
-            <input type="number" id="featureFontSize" name="featureFontSize">
-            <br>
-            <label for="displayNameLength">displayNameLength:</label>
-            <input type="number" id="displayNameLength" name="displayNameLength">
-            <br>
-            <label for="displayNameRaw">displayNameRaw:</label>
-            <input type="text" id="displayNameRaw" name="displayNameRaw">
-            <br>
-            {#            #}
-            {##}
-            {#            <select id="direction" name="direction" onchange="update()">#}
+
+            {#            <select id="direction" class="float-end" name="direction" onchange="update()">#}
             {#                <option>horizontal</option>#}
             {#                <optgroup label="vertical">#}
             {#                    <option>with overlaps (TODO)</option>#}
@@ -203,32 +234,34 @@
             {#            </select>#}
             {##}
             {#            <br>#}
-            {##}
-            {#            <label>Collapsing</label>#}
-            {#            <select id="kind_of_collapsing" name="kind_of_collapsing" onchange="update()">#}
+
+            {#            <label class="form-label">Collapsing</label>#}
+            {#            <select id="kind_of_collapsing" class="float-end" name="kind_of_collapsing" onchange="update()">#}
             {#                <option value="0">Show all</option>#}
             {#                <option value="1">Show first n features</option>#}
             {#                <option value="2">Show first n levels</option>#}
             {#                <option value="3">Show specified levels</option>#}
             {#            </select>#}
-            {##}
+
             {#            <div id="meta_collapsing_1">#}
-            {#                <label for="meta_collapsing_checkbox">Show first n features</label>#}
-            {#                <select id="meta_collapsing_select" name="meta_collapsing_select" onchange="update()">#}
+            {#                <label for="meta_collapsing_checkbox" class="form-label">Show first n features</label>#}
+            {#                <select id="meta_collapsing_select" class="float-end" name="meta_collapsing_select" onchange="update()">#}
             {#                    <option>Breadth First</option>#}
             {#                    <option>Depth First</option>#}
             {#                </select>#}
             {#            </div>#}
             {##}
             {#            <div id="meta_collapsing_2">#}
-            {#                <label for="meta_collapsing_levels">Show first n levels</label>#}
-            {#                <input type="text" id="meta_collapsing_levels" name="meta_collapsing_levels" onchange="update()"#}
+            {#                <label for="meta_collapsing_levels" class="form-label">Show first n levels</label>#}
+            {#                <input type="text" class="float-end" id="meta_collapsing_levels" name="meta_collapsing_levels"#}
+            {#                       onchange="update()"#}
             {#                       onkeydown="update()">#}
             {#            </div>#}
             {##}
             {#            <div id="meta_collapsing_3">#}
-            {#                <label for="meta_collapsing_levels">Show specified levels (f.e. 1;2;5)</label>#}
-            {#                <input type="text" id="meta_collapsing_levels" name="meta_collapsing_levels" onchange="update()"#}
+            {#                <label for="meta_collapsing_levels" class="form-label">Show specified levels (f.e. 1;2;5)</label>#}
+            {#                <input type="text" class="float-end" id="meta_collapsing_levels" name="meta_collapsing_levels"#}
+            {#                       onchange="update()"#}
             {#                       onkeydown="update()">#}
             {#            </div>#}
             {##}
@@ -238,26 +271,11 @@
         </form>
     </div>
 </div>
-<style>
-    #split_left {
-        height: 100%;
-        width: 20%;
-        position: fixed;
-        z-index: 1;
-        top: 0;
-        overflow-x: hidden;
-        padding-top: 20px;
-    }
 
-    #split_right {
-        height: 100%;
-        width: 80%;
-        position: fixed;
-        z-index: 0;
-        top: 0;
-        right: 0;
-        overflow-x: hidden;
-        padding-top: 20px;
+<style>
+    .form-label {
+        margin-bottom: 0.5em;
+        margin-right: 1em;
     }
 </style>
 
@@ -265,8 +283,6 @@
     <div id="svg-container"></div>
     <button class="btn" id="download" onclick="download()"><i class="fa fa-download"></i> Download</button>
 </div>
-
-{#<base href=".">#}
 
 <script>
     function download() {
@@ -330,6 +346,7 @@
         const svg = d3
             .select('#svg-container')
             .append('svg')
+            .attr('class', 'main-svg')
             .attr('preserveAspectRatio', 'xMidYMid meet')
             .attr('style', 'background-color:' + json_data.background + ";")
 
@@ -358,6 +375,7 @@
         // // Listen to window resize.
         window.onresize = () => window_resize_update(d3Data);
         window_resize_update(d3Data);
+        init_initLegend(d3Data);
     }
 
     function init_calcNodeSize(d3Data, d3Node) {
@@ -376,6 +394,34 @@
         }
 
         return [width, height];
+    }
+
+    function init_initLegend(d3Data) {
+        /**
+         * Initialize Legend drawn in SVG by appending a svg to the main-svg
+         */
+        let svg = d3.select('.main-svg')
+            .append('svg')
+            .append('g')
+            .attr('class', 'sub-svg');
+
+        let rect = svg.append('rect')
+            .attr("width", 300)
+            .attr("height", 100)
+
+            .attr("fill", "white")
+            .attr("stroke", "black")
+            .attr("stroke-width", "2px")
+            .classed("legend-container", true);
+
+        let items = svg
+            .append('g')
+            .classed('legend-items', true)
+            .append('text')
+            .attr("transform", "translate(10,20)")
+            .text("Legend: ");
+
+        updateLegend(d3Data);
     }
 
     function reset(d3Data, uncollapsedLevels = 4, maxChildrenCount = 3) {
@@ -753,6 +799,132 @@
         updateFeatureNodes(d3Data, visibleD3Nodes);
         updatePseudoNodes(d3Data, visibleD3Nodes);
         updateLinks(d3Data, visibleD3Nodes);
+        updateLegend(d3Data);
+    }
+
+    function updateLegend(d3Data) {
+        if (!d3Data.showLegend) {
+            // Legend not shown so just return
+            return;
+        }
+        let legendItems = getDOMItems(d3Data);
+        d3.selectAll('.legend-item')
+            .remove();
+
+        let container = d3.select(".legend-container");
+        let containerHeight = LEGEND_CONTAINER_OFFSET + legendItems.length * LEGEND_ITEM_HEIGHT;
+        container.attr("height", containerHeight); // dynamically adjust container height
+        d3.select(".sub-svg").attr("style", "transform: translate(" + "3%" + "," + "calc(3% + " + containerHeight + "px));")
+
+        let join = d3
+            .select('.legend-items')
+            .selectAll('legend-item')
+            .data(legendItems)
+            .join(enterLegendItems); //update legend items within container
+    }
+
+    function hideLegend() {
+        d3.selectAll('.legend-items')
+            .remove();
+        d3.selectAll('.legend-container')
+            .remove();
+        return;
+    }
+
+    function getDOMItems(d3Data) {
+        /**
+         * Go through d3 elements to determine the set of present Items to add to the legend
+         */
+        let presentItems = [];
+        presentItems.push(...addGroupItems());
+        presentItems.push(...addElementItems(d3Data));
+        presentItems.push(...addColorItems());
+        return presentItems;
+    }
+
+    function addGroupItems() {
+        let presentGroups = [];
+        let or_groups = d3.select('.main-svg').selectAll('.or-group');
+        if (or_groups.size() > 0) {
+            presentGroups.push(getOrGroup());
+        }
+        let alt_groups = d3.select('.main-svg').selectAll('.alt-group');
+        if (alt_groups.size() > 0) {
+            presentGroups.push(getAltGroup());
+        }
+        return presentGroups;
+    }
+
+    function allNodes() {
+        if (d3Data.root) {
+            return d3Data.root.data.descendants();
+        } else {
+            return [];
+        }
+    }
+
+    function addElementItems(d3Data) {
+        let presentItems = [];
+        let mandatoryPresent = false, optionalPresent = false; //mutually exclusive
+        let abstractPresent = false, concretePresent = false;
+        try {
+            allNodes().forEach((fNode) => {
+                if (fNode.isAbstract) {
+                    abstractPresent = true;
+                } else {
+                    concretePresent = true;
+                }
+                if (fNode.isMandatory) {
+                    mandatoryPresent = true;
+                } else {
+                    optionalPresent = true;
+                }
+            });
+            if (mandatoryPresent) {
+                presentItems.push(getMandatoryFeature());
+            }
+            if (optionalPresent) {
+                presentItems.push(getOptionalFeature());
+            }
+            if (abstractPresent) {
+                presentItems.push(getAbstractFeature());
+            }
+            if (concretePresent) {
+                presentItems.push(getConcreteFeature());
+            }
+
+
+        } catch (error) {
+            console.error(error);
+        } finally {
+            return presentItems;
+        }
+
+    }
+
+    function addColorItems(presentItems) {
+        return [];
+    }
+
+    function enterLegendItems(selection) {
+
+        let legendItem = selection
+            .append('g')
+            .attr("transform", (d, i) => "translate(10," + (LEGEND_CONTAINER_OFFSET + i * LEGEND_ITEM_HEIGHT) + ")")
+            .classed('legend-item', true);
+
+        let img = legendItem
+            .append('svg:image')
+            .attr('class', 'iconUserTotal')
+            .attr('width', LEGEND_IMG_WIDTH)
+            .attr('height', LEGEND_IMG_HEIGHT)
+            .attr('y', -LEGEND_IMG_HEIGHT)
+            .attr('href', item => item.image);
+        let text = legendItem
+            .append('text')
+            .text(item => item.description)
+            .attr("transform", "translate(55,0)")
+            .classed('legend-item', true);
     }
 
     // Calculates rect-width dependent on font-size dynamically.
@@ -860,6 +1032,8 @@
     }
 
     // --
+
+    //classes
 
     // -- FeatureNode --
     class FeatureNode {
@@ -1206,6 +1380,42 @@
 
     // ---
 
+    // -- Legend --
+    class LegendItem {
+        constructor(description, image) {
+            this.description = description;
+            this.image = image;
+        }
+    }
+
+    function getOrGroup() {
+        return new LegendItem("Or Group", "{{ url_for('static', filename='legend/or.png') }}");
+    }
+
+    function getAltGroup() {
+        return new LegendItem("Alternative Group", "{{ url_for('static', filename='legend/alt.png') }}");
+    }
+
+    function getAndGroup() {
+        return new LegendItem("And Group", "{{ url_for('static', filename='legend/and.png') }}");
+    }
+
+    function getAbstractFeature() {
+        return new LegendItem("Abstract Feature", "{{ url_for('static', filename='legend/abstract.png') }}");
+    }
+
+    function getConcreteFeature() {
+        return new LegendItem("Concrete Feature", "{{ url_for('static', filename='legend/concrete.png') }}");
+    }
+
+    function getMandatoryFeature() {
+        return new LegendItem("Mandatory Feature", "{{ url_for('static', filename='legend/mandatory.png') }}");
+    }
+
+    function getOptionalFeature() {
+        return new LegendItem("Optional Feature", "{{ url_for('static', filename='legend/optional.png') }}");
+    }
+
     // -- PseudoNode --
     class PseudoNode {
         constructor(parent, hiddenD3Nodes) {
@@ -1235,6 +1445,7 @@
             flexLayout: undefined,
             zoom: undefined,
             nodeIdCounter: 0,
+            showLegend: showLegend,
             isShortenedName: isShortenedName,
             spaceBetweenParentChild: spaceBetweenParentChild,
             spaceBetweenSiblings: spaceBetweenSiblings,
@@ -1378,6 +1589,20 @@
         };
     }
 
+    function toggleLegend() {
+        if (!this.showLegend) {
+            // Legend shown until now=> hide
+            hideLegend();
+            d3Data.showLegend = false;
+        } else {
+            // Legend not shown until now => re initialize
+            init_initLegend(this.d3Data);
+            this.d3Data.showLegend = true;
+            this.showHideLegendBtn = true;
+        }
+        updateSvg(this.d3Data);
+    }
+
     const xml = `{{ xml|safe }}`;
 
     // -- const --
@@ -1385,12 +1610,12 @@
     const json_data = {{ json_data|safe }};
     const themeName = json_data.themeName;
     const directionParam = json_data.direction;
-    const withOverlapping = json_data.withOverlapping;
-    const collapsing = json_data.collpasing;
-    const collapsingParam = json_data.collapsingParam;
+    {#const withOverlapping = json_data.withOverlapping;#}
+    {#const collapsing = json_data.collpasing;#}
+    {#const collapsingParam = json_data.collapsingParam;#}
     const spaceBetweenParentChild = eval(json_data.spaceBetweenParentChild);
     const spaceBetweenSiblings = eval(json_data.spaceBetweenSiblings);
-    const customCss = json_data.customCss;
+    {#const customCss = json_data.customCss;#}
     const presetTheme = json_data.presetTheme;
     const isShortenedName = json_data.feature.isShortenedName;
     const RECT_HEIGHT = eval(json_data.feature.rectHeight);
@@ -1399,6 +1624,8 @@
     const FEATURE_FONT_SIZE = eval(json_data.feature.featureFontSize);
     const DISPLAY_NAME_LENGTH = eval(json_data.feature.displayNameLength);
     const DISPLAY_NAME_RAW = eval(json_data.feature.displayNameRaw);
+
+    const showLegend = true;
 
     const RECT_MARGIN = {right: 8, left: 8};
     const POINTS = '...';
@@ -1412,6 +1639,11 @@
     const TRIANGLE_BORDER_OFFSET = 11;
 
     const MANDATORY_CIRCLE_RADIUS = 6;
+    const LEGEND_CONTAINER_OFFSET = 50;
+    const LEGEND_ITEM_HEIGHT = 30;
+    const LEGEND_ITEM_TEXT_OFFSET = 55;
+    const LEGEND_IMG_WIDTH = 46;
+    const LEGEND_IMG_HEIGHT = 18;
 
     // ---
     function submitData() {
@@ -1537,12 +1769,11 @@
     reset(d3Data);
 
     {% if load_local_storage %}
-        if(localStorage.getItem("json") !== null){
+        if (localStorage.getItem("json") !== null) {
             initFormData(localStorage.getItem("json"));
             document.getElementById("presetTheme").value = 3;
             reload();
-        }
-        else{
+        } else {
             initFormData({{ json_data|safe }});
         }
     {% else %}
